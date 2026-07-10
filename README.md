@@ -32,7 +32,7 @@ open consulting-deck-skill/template.html   # 直接看 12 页母版演示（速�
 ```
 
 做一份新 deck：把 `template.html` 复制改名 + 拷走 `assets/`，按 `references/layouts.md`
-挑母版填内容。放映快捷键在 deck 里按 `H` 查看。
+挑母版填内容。放映快捷键与关于信息在 deck 里按 `H` 查看。
 
 ## 快速开始（AI 智能体）
 
