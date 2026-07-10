@@ -81,14 +81,17 @@ node capture-deck.mjs <deck 绝对路径> audit  # 逐页 PNG + so/bo 溢出报�
 
 ### Step 6 · 放映交付口径
 
-告知使用者：双击打开即放映（推荐 Chrome/Edge），`H` 看快捷键；`F` 从当前页全屏放映
+告知使用者：双击打开即放映（推荐 Chrome/Edge），`H` 看快捷键与关于；`F` 从当前页全屏放映
 （适合镜像投屏；放映中 `F` = 全屏⇄窗口切换）；双屏演讲 = 系统显示设为“扩展”后按
 `P` **一键双屏**——幻灯片自动全屏投外屏、演讲者视图落本机屏，投反了按 `X` 或点
 「交换屏幕」一键对调；远程视频会议 = 按 `P` 选“演讲者视图＋窗口放映”，在会议软件中
 共享放映窗口（标题带“（放映窗口）”后缀的那个）——观众只见干净画面，讲稿留在本机；
 建议先把 deck 拖成独立浏览器窗口再共享，中途查资料用另一个窗口；
 **正式汇报前先在排练时点一次 `P` 完成“窗口管理”授权**（浏览器会记住，正式开播零弹窗）；
-单屏/镜像/Safari/授权被拒会自动降级为手动流程并给指引。PDF = 浏览器打印（每页一片）。
+单屏/镜像/Safari/授权被拒会自动降级为手动流程并给指引。
+PDF 交付：`node scripts/export-pdf.mjs <deck.html>` 一次产出纯幻灯片 PDF（16:9 满幅矢量）
+与逐字稿二合一 handout（A4 横版，上片下稿），`--rp` 可出分报告子集；现场应急用
+浏览器 `⌘P`（每页一片）。
 细节与意外恢复路径见 `references/presenting.md`。
 
 ## 硬规则（违反 = 返工）
@@ -130,7 +133,8 @@ consulting-deck-skill/
     ├── verify-presenter.mjs        ← 放映增强层无头断言（控制条/协议/窗口放映/降级链，硬闸门须全绿）
     ├── measure-geometry.mjs        ← 几何核验（footGap/headGap，硬闸门）
     ├── capture-deck.mjs            ← 逐页截图 + 溢出报告
-    └── package.json                ← 核验脚本依赖声明（playwright）
+    ├── export-pdf.mjs              ← PDF 导出（纯片 16:9 + A4 二合一 handout，--rp 分报告，自校验）
+    └── package.json                ← 核验/导出脚本依赖声明（playwright + pdf-lib）
 ```
 
 **加载顺序建议**：SKILL.md（本文件）→ layouts.md 挑母版 → 写页 →

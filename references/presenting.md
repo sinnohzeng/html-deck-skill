@@ -24,7 +24,7 @@
 | `X` | 交换两个屏幕的内容（仅双屏放映中） | presenter 层 |
 | `B` | 黑屏 / 恢复（任意翻页键也恢复；双窗状态同步） | presenter 层 |
 | `Esc` | 退出放映（双屏放映的全屏中：第一次退全屏落窗口放映，再按一次退出） | presenter 层 |
-| `H` / `?` | 快捷键帮助 | presenter 层 |
+| `H` / `?` | 快捷键帮助与关于（含作者与开源仓链接、「导出 PDF」按钮） | presenter 层 |
 
 **F5 为浏览器刷新**（刷新后页码经 URL hash 自动恢复，是意外情况下的恢复路径），放映请用 `F` / `P`。
 
@@ -105,9 +105,30 @@
 
 ## 导出 PDF
 
-新版 deck-stage 内建打印支持：浏览器 `⌘P` → 目标“另存为 PDF” → 每页一片、
-尺寸 1920×1080、无页边距（`@page` 已由播放器注入）。缩略图栏、控制条、
-演讲者 UI 均不入印。备选：decktape generic 模式（须 `--max-slides <页数>`）。
+两条路径，按用途选：
+
+**快捷路径（现场应急）**：浏览器 `⌘P`（或帮助浮层里的「导出 PDF」按钮）→
+目标“另存为 PDF” → 每页一片、尺寸 1920×1080、无页边距（`@page` 已由播放器注入）。
+缩略图栏、控制条、演讲者 UI 均不入印。
+
+**交付路径（推荐）**：`scripts/export-pdf.mjs` 一次产出两种交付物，自带硬闸校验：
+
+```bash
+node scripts/export-pdf.mjs <deck.html>            # 两种都导，落 deck 同目录
+  --slides           # 只导纯幻灯片 PDF（297mm×167.0625mm 全幅 16:9 矢量，无黑边）
+  --handout          # 只导二合一 handout（A4 横版：上幻灯片 + 下逐字稿）
+  --rp <id>          # 按 <section data-rp="id"> 过滤分报告子集（文件名自动带 -id 后缀）
+  --out <dir>        # 输出目录
+  --author <name>    # PDF Author 元数据（默认作者署名，以公司/项目组名义交付时覆写）
+  --date <YYYYMMDD>  # 文件名日期（默认当天）
+  --keep-temp        # 保留中间静态 HTML（排障）
+```
+
+产物命名 `<deck 基名>[-rp]-幻灯片[和逐字稿]-<日期>.pdf`，自动写入 PDF 元数据
+（Title/Author/Creator）。判读：脚本 exit 0 即全部通过——页数=页码、页面尺寸
+在容差内、逐字稿零溢出（自适应梯子：缩字号→dense→双栏；仍溢出则报错列页码，
+去精简逐字稿或拆页）。handout 前置硬闸：`#speaker-notes` 条数必须等于页数。
+`data-deck-skip` 页不入印（与浏览器打印行为一致）。
 
 ## 无头核验（交付前）
 
@@ -116,6 +137,7 @@ cd scripts && npm i && npx playwright install chromium   # 首次
 node verify-presenter.mjs <deck 绝对路径>   # 放映增强层无头断言（控制条/协议/窗口放映/降级链），须全绿
 node measure-geometry.mjs <deck 绝对路径>   # 每页 footGap/headGap；负数 = 内容与页眉/页脚重叠
 node capture-deck.mjs <deck 绝对路径> audit # 逐页 PNG 落 scripts/_audit/ + so/bo 溢出报告
+node export-pdf.mjs <deck 绝对路径>         # PDF 导出（自校验页数/尺寸/逐字稿溢出，exit 0 即过）
 ```
 
 判读：`footGap/headGap > 15` 为过线；`so>2` 真裁切、`bo>2` 容器密集。

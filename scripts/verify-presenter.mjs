@@ -4,7 +4,8 @@
    覆盖：统一控制条渲染与中文文案、上游导航条抑制（rail 存活）、翻页/回首页/数字缓冲跳页、
    __deckp_sync / __deckp_blackout 协议、单屏降级选择卡 → 演讲者窗口全链（同步/网格/黑屏双向/结束放映）、
    窗口放映全链（v3：入场/state.fs 字段/横幅零误报/Esc 退出/心跳防循环/represent 免手势恢复/
-   讲者窗关闭降级/退出唯一性）、noscale 不入镜、帮助浮层；全屏为 headless best-effort（失败仅告警不阻塞）。
+   讲者窗关闭降级/退出唯一性）、noscale 不入镜、帮助浮层（v4：导出 PDF 按钮/关于面板署名链接/关闭契约）；
+   全屏为 headless best-effort（失败仅告警不阻塞）。
    上游 deck-stage.js 整文件覆盖升级后必须重跑本脚本（overlay 抑制依赖其 open shadowRoot 与 .overlay 类名，
    窗口放映依赖其 __omelette_presenting 消息语义）。 */
 import { chromium } from 'playwright';
@@ -26,6 +27,8 @@ const soft = (cond, name) => {
 const browser = await chromium.launch({ headless: !process.env.VERIFY_HEADED });
 const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
 const page = await ctx.newPage();
+const consoleTexts = [];
+page.on('console', (m) => consoleTexts.push(m.text()));
 await page.goto(pathToFileURL(deck).href, { waitUntil: 'networkidle' });
 await page.evaluate(() => document.fonts.ready);
 await page.waitForTimeout(300);
@@ -51,6 +54,8 @@ ok(await page.evaluate(() => {
 }), '首次打开引导气泡出现');
 ok(await page.evaluate(() =>
   !!document.querySelector('.dp-bar [data-act="fstoggle"] .fslab')), '全屏⇄窗口切换按钮已就位（showonly）');
+ok(await page.evaluate(() => ((document.querySelector('meta[name="author"]') || {}).content || '').includes('曾子轩')), '模板 meta author 署名在位');
+soft(consoleTexts.some((t) => t.includes('zixuan.net')), '启动 console 署名横幅出现');
 
 console.log('【2】上游导航条抑制（rail 存活）');
 ok(await page.evaluate(() => {
@@ -70,31 +75,38 @@ ok(await page.evaluate(() => {
 }), '画布区保留 rail 宽度补偿（.stage left > 0）');
 
 console.log('【3】翻页 / 回首页 / 数字缓冲跳页');
+const nIdx = Math.min(1, total - 1); // 单页 deck 退化为验证夹紧
 await page.evaluate(() => document.querySelector('.dp-bar [data-act="next"]').click());
 await page.waitForTimeout(150);
-ok(await page.evaluate(() => document.querySelector('deck-stage').index === 1), '控制条下一页生效');
-ok(await page.evaluate(() => document.querySelector('.dp-bar .pg .cur').textContent === '2'), '页码随 slidechange 联动');
+ok(await page.evaluate((i) => document.querySelector('deck-stage').index === i, nIdx), '控制条下一页生效');
+ok(await page.evaluate((i) => document.querySelector('.dp-bar .pg .cur').textContent === String(i + 1), nIdx), '页码随 slidechange 联动');
 await page.evaluate(() => document.querySelector('.dp-bar [data-act="prev"]').click());
 await page.waitForTimeout(150);
 ok(await page.evaluate(() => document.querySelector('deck-stage').index === 0), '控制条上一页生效');
-await page.keyboard.press('5');
+const single = Math.min(5, total); // 跳页目标随 deck 长度派生，短 deck 也可核验
+await page.keyboard.press(String(single).slice(-1));
 const hint = await page.evaluate(() => (document.querySelector('.dp-jumphint') || {}).textContent || '');
-ok(hint.includes('跳至 5'), '数字键出现跳页浮签');
+ok(hint.includes('跳至 ' + String(single).slice(-1)), '数字键出现跳页浮签');
 await page.waitForTimeout(1000);
-ok(await page.evaluate(() => document.querySelector('deck-stage').index === 4), '单数字 800ms 自动跳页（5 → 第 5 页）');
-await page.keyboard.press('1');
-await page.keyboard.press('0');
+ok(await page.evaluate((n) => document.querySelector('deck-stage').index === n - 1, Number(String(single).slice(-1))),
+  `单数字 800ms 自动跳页（→ 第 ${String(single).slice(-1)} 页）`);
+await page.evaluate(() => document.querySelector('deck-stage').goTo(0)); // 起点归零，防与目标重合空转
+await page.waitForTimeout(150);
+const multi = String(Math.min(10, total));
+for (const ch of multi) await page.keyboard.press(ch);
 await page.keyboard.press('Enter');
 await page.waitForTimeout(150);
-ok(await page.evaluate(() => document.querySelector('deck-stage').index === 9), '多位数字 + Enter 跳页（10 → 第 10 页）');
+ok(await page.evaluate((n) => document.querySelector('deck-stage').index === n - 1, Number(multi)),
+  `数字 + Enter 跳页（${multi} → 第 ${multi} 页）`);
 await page.evaluate(() => document.querySelector('.dp-bar [data-act="home"]').click());
 await page.waitForTimeout(150);
 ok(await page.evaluate(() => document.querySelector('deck-stage').index === 0), '「回首页」回到第 1 页');
 
-console.log('【4】__deckp 协议回归');
-await page.evaluate(() => window.postMessage({ __deckp_sync: { index: 5 } }, '*'));
+console.log('【4】__dp 协议回归');
+const syncIdx = Math.min(5, total - 1);
+await page.evaluate((i) => window.postMessage({ __deckp_sync: { index: i } }, '*'), syncIdx);
 await page.waitForTimeout(150);
-ok(await page.evaluate(() => document.querySelector('deck-stage').index === 5), '__deckp_sync 驱动翻页');
+ok(await page.evaluate((i) => document.querySelector('deck-stage').index === i, syncIdx), '__deckp_sync 驱动翻页');
 await page.evaluate(() => window.postMessage({ __deckp_blackout: true }, '*'));
 await page.waitForTimeout(150);
 ok(await page.evaluate(() => !!document.querySelector('.dp-black')), '__deckp_blackout:true 黑屏出现');
@@ -108,6 +120,35 @@ ok(await page.evaluate(() => {
   const h = document.querySelector('.dp-help');
   return !!h && h.textContent.includes('演讲者放映') && h.textContent.includes('交换两个屏幕');
 }), 'H 唤起帮助且含新键位说明');
+ok(await page.evaluate(() => {
+  const h = document.querySelector('.dp-help');
+  return !!h && h.textContent.includes('导出 PDF') && !!h.querySelector('[data-hact="print"]');
+}), '帮助浮层含「导出 PDF」按钮与 ⌘P 说明');
+// stub window.print：无头下真实打印对话框会挂死；同时计数验证唤起
+await page.evaluate(() => { window.__printCalls = 0; window.print = () => { window.__printCalls += 1; }; });
+await page.evaluate(() => document.querySelector('.dp-help [data-hact="print"]').click());
+await page.waitForTimeout(250); // 覆盖 80ms 收层→打印延时
+ok(await page.evaluate(() => window.__printCalls === 1 && !document.querySelector('.dp-help')),
+  '点「导出 PDF」收帮助层并唤起 window.print');
+await page.keyboard.press('h'); // 重开：验关于面板与关闭契约
+await page.waitForTimeout(100);
+ok(await page.evaluate(() => {
+  const h = document.querySelector('.dp-help');
+  return !!h && h.textContent.includes('曾子轩') &&
+    !!h.querySelector('a[href="https://zixuan.net"][target="_blank"]') &&
+    !!h.querySelector('a[href="https://github.com/sinnohzeng/consulting-deck-skill"][target="_blank"]');
+}), '关于面板含作者主页与开源仓链接（新标签打开）');
+ok(await page.evaluate(() =>
+  document.querySelector('.dp-help').textContent.includes('v' + window.__deckpPresenter.version)),
+  '关于面板版本号与 __deckpPresenter.version 一致');
+await page.evaluate(() => document.querySelector('.dp-help .card h3').click());
+await page.waitForTimeout(100);
+ok(await page.evaluate(() => !!document.querySelector('.dp-help')), '点击卡片主体不误关帮助');
+await page.evaluate(() => document.querySelector('.dp-help [data-close]').click());
+await page.waitForTimeout(100);
+ok(await page.evaluate(() => !document.querySelector('.dp-help')), '关闭按钮 × 关闭帮助');
+await page.keyboard.press('h'); // 重开供 Esc 断言复用
+await page.waitForTimeout(100);
 await page.keyboard.press('Escape');
 ok(await page.evaluate(() => !document.querySelector('.dp-help')), 'Esc 关闭帮助');
 
@@ -134,20 +175,23 @@ await pv.waitForTimeout(2300); // 等一轮 hello 心跳完成握手
 ok(await pv.evaluate(() => document.querySelector('#pv-conn-t').textContent === '已连接 · 窗口放映'), '连接状态显示复合态“已连接 · 窗口放映”');
 await pv.evaluate(() => document.querySelector('#pv-nexb').click());
 await page.waitForTimeout(300);
-ok(await page.evaluate(() => document.querySelector('deck-stage').index === 1), '演讲者窗翻页同步放映窗');
-await page.evaluate(() => document.querySelector('deck-stage').goTo(3));
+ok(await page.evaluate((i) => document.querySelector('deck-stage').index === i, nIdx), '演讲者窗翻页同步放映窗');
+const gA = Math.min(3, total - 1);
+await page.evaluate((i) => document.querySelector('deck-stage').goTo(i), gA);
 await pv.waitForTimeout(300);
-ok(await pv.evaluate(() => document.querySelector('#pv-cur-no').textContent === '4'), '放映窗翻页同步演讲者窗');
+ok(await pv.evaluate((i) => document.querySelector('#pv-cur-no').textContent === String(i + 1), gA), '放映窗翻页同步演讲者窗');
 await pv.evaluate(() => document.querySelector('#pv-grid-btn').click());
 await pv.waitForTimeout(400);
 ok(await pv.evaluate((t) => document.querySelectorAll('.pv-grid .cell').length === t, total), `「所有页面」网格渲染 ${total} 格`);
-ok(await pv.evaluate(() => {
+ok(await pv.evaluate((i) => {
   const cells = document.querySelectorAll('.pv-grid .cell');
-  return cells[3] && cells[3].hasAttribute('data-cur');
-}), '网格高亮当前页');
-await pv.evaluate(() => document.querySelectorAll('.pv-grid .cell')[7].click());
+  return cells[i] && cells[i].hasAttribute('data-cur');
+}, gA), '网格高亮当前页');
+let gB = Math.min(7, total - 1);
+if (gB === gA) gB = Math.max(0, gA - 1); // 与当前页错开，防断言空转（单页 deck 退化为夹紧验证）
+await pv.evaluate((i) => document.querySelectorAll('.pv-grid .cell')[i].click(), gB);
 await page.waitForTimeout(300);
-ok(await page.evaluate(() => document.querySelector('deck-stage').index === 7), '网格点击跳页并同步放映窗');
+ok(await page.evaluate((i) => document.querySelector('deck-stage').index === i, gB), '网格点击跳页并同步放映窗');
 ok(await pv.evaluate(() => !document.querySelector('.pv-grid')), '网格点击后自动关闭');
 await pv.evaluate(() => document.querySelector('#pv-black').click());
 await page.waitForTimeout(300);

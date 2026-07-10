@@ -13,7 +13,8 @@
  *     自动退化为双胶囊并存，功能不受影响。
  * 上游 deck-stage.js 未来整文件覆盖升级，本文件无需跟改。
  *
- * 功能（对标 PowerPoint 放映交互，v3 新增「窗口放映」）：
+ * 功能（对标 PowerPoint 放映交互，v3 新增「窗口放映」，v4 新增「关于面板 +
+ * 帮助层一键导出 PDF + chrome 视觉升级」）：
  *   1. 统一控制条   — 底部居中单条胶囊：翻页/页码跳转/回首页/放映/演讲者放映/帮助；
  *                     放映态自动切换为精简放映条（翻页/黑屏/全屏⇄窗口/退出）
  *   2. 放映         — F 从当前页全屏放映（≈PPT Shift+F5）；Shift+F 从头放映（≈F5）；
@@ -47,7 +48,7 @@
  *   仅在 enterShow（唯一入场漏斗）与 hello 换源；换源判定因 WindowProxy 跨刷新
  *   恒等，实际只覆盖「讲者窗反向重开主窗」一种情形。
  *
- * 消息协议（本层自有，__deckp 前缀避免与上游冲突；postMessage '*'，file:// 可用）：
+ * 消息协议（本层自有，__dp 前缀避免与上游冲突；postMessage '*'，file:// 可用）：
  *   {__deckp_hello:'presenter'}          演讲者窗口 → 放映窗口（握手/心跳/重连）
  *   {__deckp_sync:{index}}               双向；接收方 index 相同则忽略（防回声）
  *   {__deckp_blackout:bool}              双向（黑屏状态同步）
@@ -84,7 +85,28 @@
   if (IS_THUMB) return;
 
   const $ = (sel, root) => (root || document).querySelector(sel);
-  const FONT_STACK = '-apple-system,"PingFang SC","Microsoft YaHei",sans-serif';
+  const VERSION = 4; // 运行时版本唯一真源：关于面板 / console 横幅 / __deckpPresenter 均引用
+  const FONT_STACK = '"Alibaba PuHuiTi 3.0",-apple-system,"PingFang SC","Microsoft YaHei",sans-serif';
+
+  /* ── 共用：postMessage（跨 file:// 双窗，目标可能已关闭） ── */
+  function post(win, msg) {
+    if (!win) return;
+    try { win.postMessage(msg, '*'); } catch (e) {}
+  }
+
+  /* ── 共用：键盘事件是否落在输入类控件（各 keydown 守卫统一用这一份） ── */
+  const isTypingTarget = (t) => !!t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
+
+  /* ── 署名横幅（每窗一次；作者与开源仓见 H 键关于面板） ── */
+  try {
+    console.log(
+      '%c咨询汇报 HTML 幻灯片%c deck-presenter v' + VERSION +
+      '\n设计与实现 曾子轩 · https://zixuan.net' +
+      '\n开源技能包 https://github.com/sinnohzeng/consulting-deck-skill' +
+      (IS_PRESENTER ? '' : '\n按 H 查看快捷键与关于'), // 演讲者窗未绑 H，不给误导指引
+      'color:#7BA0E6;font-weight:700;font-size:13px', 'color:inherit'
+    );
+  } catch (e) {}
 
   /* ── 共用：读取逐字稿（与 deck-stage._loadNotes 同一优先级规则） ── */
   function readNotes(sections) {
@@ -154,19 +176,19 @@
     const css = document.createElement('style');
     css.textContent = `
       html,body{height:100%;overflow:hidden}
-      body{background:#111;display:flex;flex-direction:column;font-family:"Alibaba PuHuiTi 3.0",${FONT_STACK}}
-      .pv-head{flex:none;display:flex;align-items:center;gap:14px;padding:10px 18px;background:#1c1c1c;border-bottom:1px solid rgba(255,255,255,.08);color:#eee;font-size:14px}
-      .pv-head .timer{font-variant-numeric:tabular-nums;font-size:22px;font-weight:700;color:#fff;letter-spacing:.04em}
+      body{background:radial-gradient(1200px 700px at 70% -10%,#16233F 0%,#0B1322 60%);display:flex;flex-direction:column;font-family:${FONT_STACK}}
+      .pv-head{flex:none;display:flex;align-items:center;gap:14px;padding:10px 18px;background:#141F36;border-bottom:1px solid rgba(255,255,255,.08);color:#EAF0F8;font-size:14px}
+      .pv-head .timer{font-variant-numeric:tabular-nums;font-size:24px;font-weight:700;color:#fff;letter-spacing:.05em}
       .pv-head .clock{font-variant-numeric:tabular-nums;color:rgba(255,255,255,.6)}
       .pv-head .sp{margin-left:auto}
       .pv-head .pgno{font-variant-numeric:tabular-nums;font-size:18px;font-weight:700}
       .pv-head .pgno .tt{color:rgba(255,255,255,.45);font-weight:400}
       .pv-btn{appearance:none;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#ddd;font:inherit;font-size:13px;padding:4px 12px;border-radius:6px;cursor:pointer;white-space:nowrap}
-      .pv-btn:hover{background:rgba(255,255,255,.14);color:#fff}
+      .pv-btn:hover{background:rgba(123,160,230,.18);color:#fff}
       .pv-btn[disabled]{opacity:.4;cursor:not-allowed}
       .pv-btn .k{display:inline-flex;align-items:center;justify-content:center;min-width:15px;height:15px;padding:0 3px;margin-left:5px;font-family:ui-monospace,Menlo,monospace;font-size:10px;color:rgba(255,255,255,.85);background:rgba(255,255,255,.14);border-radius:4px}
-      .pv-btn.acc{border-color:rgba(74,158,255,.55);color:#8fc2ff}
-      .pv-btn.acc:hover{background:rgba(74,158,255,.16);color:#cfe6ff}
+      .pv-btn.acc{border-color:rgba(123,160,230,.55);color:#7BA0E6}
+      .pv-btn.acc:hover{background:rgba(123,160,230,.16);color:#CFE0FF}
       #pv-conn .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#52c41a;margin-right:7px;vertical-align:1px}
       #pv-conn[data-off] .dot{background:#ff4d4f}
       #pv-conn[data-off]{border-color:rgba(255,77,79,.5);color:#ffb3b4}
@@ -178,13 +200,13 @@
       .pv-side{display:flex;flex-direction:column;gap:10px;min-height:0;min-width:0}
       .pv-next{position:relative;flex:none;aspect-ratio:16/9;background:#000;border-radius:8px;overflow:hidden}
       .pv-next .cap,.pv-cur .cap{position:absolute;left:10px;top:8px;z-index:5;font-size:12px;color:#fff;background:rgba(0,0,0,.55);padding:2px 10px;border-radius:999px;letter-spacing:.06em}
-      .pv-notes{flex:1;min-height:0;display:flex;flex-direction:column;background:#1c1c1c;border-radius:8px;overflow:hidden}
+      .pv-notes{flex:1;min-height:0;display:flex;flex-direction:column;background:#141F36;border:1px solid rgba(255,255,255,.06);border-radius:8px;overflow:hidden}
       .pv-notes .bar{flex:none;display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid rgba(255,255,255,.08);color:rgba(255,255,255,.6);font-size:13px}
       .pv-notes .bar .sp{margin-left:auto}
       .pv-notes .txt{flex:1;overflow-y:auto;padding:16px 20px;color:#f2f2f2;line-height:1.75;scrollbar-width:thin}
       .pv-notes .txt p{margin:0 0 .9em}
       .pv-notes .txt:empty::before{content:"（本页无逐字稿）";color:rgba(255,255,255,.35)}
-      .pv-foot{flex:none;display:flex;align-items:center;gap:14px;padding:10px 18px;background:#1c1c1c;border-top:1px solid rgba(255,255,255,.08);color:#ccc}
+      .pv-foot{flex:none;display:flex;align-items:center;gap:14px;padding:10px 18px;background:#141F36;border-top:1px solid rgba(255,255,255,.08);color:#ccc}
       .pv-foot .nav{display:flex;gap:10px}
       .pv-foot .nav .pv-btn{font-size:15px;padding:8px 22px}
       .pv-foot .nxlab{font-size:14px;color:rgba(255,255,255,.55);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1}
@@ -192,14 +214,15 @@
       .pv-foot .jump input{width:64px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:6px;color:#fff;font:inherit;font-size:14px;padding:5px 8px;text-align:center}
       .pv-canvas{position:absolute;left:50%;top:50%;width:1920px;height:1080px;transform-origin:center center;background:#fff}
       .pv-end{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.4);font-size:15px;letter-spacing:.1em}
-      .pv-grid{position:fixed;inset:0;z-index:60;background:rgba(8,8,8,.96);overflow-y:auto;padding:22px;scrollbar-width:thin}
+      .pv-grid{position:fixed;inset:0;z-index:60;background:rgba(8,14,32,.96);overflow-y:auto;padding:22px;scrollbar-width:thin}
       .pv-grid .gwrap{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
       .pv-grid .cell{position:relative;aspect-ratio:16/9;background:#000;border-radius:6px;overflow:hidden;cursor:pointer;outline:2px solid transparent;outline-offset:2px}
       .pv-grid .cell:hover{outline-color:rgba(255,255,255,.45)}
-      .pv-grid .cell[data-cur]{outline-color:#4a9eff}
+      .pv-grid .cell[data-cur]{outline-color:#7BA0E6}
       .pv-grid .cell .no{position:absolute;left:6px;top:5px;z-index:5;font-size:11px;color:#fff;background:rgba(0,0,0,.6);padding:1px 8px;border-radius:999px}
-      .pv-grid .ghint{position:sticky;top:0;z-index:8;margin:-22px -22px 14px;padding:10px 22px;background:rgba(8,8,8,.9);color:rgba(255,255,255,.55);font-size:13px}
+      .pv-grid .ghint{position:sticky;top:0;z-index:8;margin:-22px -22px 14px;padding:10px 22px;background:rgba(8,14,32,.9);color:rgba(255,255,255,.55);font-size:13px}
       @media (max-width:1100px){.pv-main{grid-template-columns:1fr 320px}}
+      @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none !important;animation:none !important}}
     `;
     document.head.appendChild(css);
 
@@ -285,10 +308,6 @@
       if (gridEl) markGridCurrent();
     }
 
-    function post(win, msg) {
-      if (!win) return;
-      try { win.postMessage(msg, '*'); } catch (e) {}
-    }
 
     function goTo(n, silent) {
       const c = Math.max(0, Math.min(total - 1, n));
@@ -514,8 +533,7 @@
     $('#pv-black').addEventListener('click', toggleBlack);
 
     window.addEventListener('keydown', (e) => {
-      const t = e.target;
-      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+      if (isTypingTarget(e.target)) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const k = e.key;
       let handled = true;
@@ -533,6 +551,8 @@
       if (handled) e.preventDefault();
     });
 
+    // 滚轮翻页骨架与放映窗另有一份镜像（阈值 50 / 冷却 450ms），改动请两处同步；
+    // 两份 ignore 路径语义不同（此处让行逐字稿/网格，放映窗让行 rail/ctxmenu），不抽象。
     let wheelAcc = 0, wheelCool = 0;
     window.addEventListener('wheel', (e) => {
       if (e.ctrlKey) return;
@@ -599,26 +619,30 @@
 
   const css = document.createElement('style');
   css.textContent = `
-    .dp-bar{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:2147483000;display:flex;align-items:center;gap:2px;padding:4px;
-      background:#000;color:#fff;border-radius:999px;font-size:12px;opacity:0;pointer-events:none;white-space:nowrap;
-      transition:opacity 260ms ease;font-family:${FONT_STACK};user-select:none}
-    .dp-bar[data-visible]{opacity:1;pointer-events:auto}
-    .dp-bar[data-mode="show"][data-visible]{opacity:.85}
+    .dp-bar{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(6px);z-index:2147483000;display:flex;align-items:center;gap:2px;padding:4px;
+      background:rgba(15,27,51,.82);backdrop-filter:blur(14px) saturate(1.3);-webkit-backdrop-filter:blur(14px) saturate(1.3);
+      color:#fff;border-radius:999px;border:1px solid rgba(255,255,255,.14);box-shadow:0 10px 30px rgba(8,14,32,.45);
+      font-size:12px;opacity:0;pointer-events:none;white-space:nowrap;
+      transition:opacity 240ms cubic-bezier(.2,.7,.3,1),transform 240ms cubic-bezier(.2,.7,.3,1);font-family:${FONT_STACK};user-select:none}
+    .dp-bar[data-visible]{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0)}
+    .dp-bar[data-mode="show"][data-visible]{opacity:.88}
     .dp-bar button{appearance:none;background:transparent;border:0;color:rgba(255,255,255,.72);font:inherit;
-      padding:5px 12px;border-radius:999px;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
-    .dp-bar button:hover{background:rgba(255,255,255,.12);color:#fff}
+      padding:5px 12px;border-radius:999px;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;
+      transition:background 160ms ease,color 160ms ease}
+    .dp-bar button:hover{background:rgba(123,160,230,.18);color:#fff}
     .dp-bar button.nav{padding:5px 9px}
     .dp-bar button.nav svg{display:block}
     .dp-bar .pg{display:inline-flex;align-items:center;gap:3px;padding:5px 8px;border-radius:999px;cursor:pointer;
       font-variant-numeric:tabular-nums;color:rgba(255,255,255,.88)}
-    .dp-bar .pg:hover{background:rgba(255,255,255,.12)}
+    .dp-bar .pg:hover{background:rgba(123,160,230,.18)}
     .dp-bar .pg .sep{color:rgba(255,255,255,.4);margin:0 1px}
     .dp-bar .pg .tot{color:rgba(255,255,255,.55)}
     .dp-bar .pg input{width:44px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);border-radius:6px;
-      color:#fff;font:inherit;font-size:12px;padding:1px 4px;text-align:center;outline:none}
+      color:#fff;font:inherit;font-size:12px;padding:1px 4px;text-align:center;outline:none;transition:border-color 160ms ease}
+    .dp-bar .pg input:focus{border-color:rgba(123,160,230,.65)}
     .dp-bar .divider{width:1px;height:16px;background:rgba(255,255,255,.22);margin:0 4px;flex:none}
     .dp-bar .kbd{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;
-      font-family:ui-monospace,Menlo,monospace;font-size:10px;color:rgba(255,255,255,.88);background:rgba(255,255,255,.12);border-radius:4px}
+      font-family:ui-monospace,Menlo,monospace;font-size:10px;color:#7BA0E6;background:rgba(123,160,230,.14);border-radius:4px}
     .dp-bar[data-mode="show"] .browseonly{display:none}
     .dp-bar .showonly{display:none}
     .dp-bar[data-mode="show"] .showonly{display:inline-flex}
@@ -626,50 +650,65 @@
     :fullscreen .dp-bar{display:flex}
     .dp-black{position:fixed;inset:0;z-index:2147483400;background:#000;cursor:none}
     .dp-end{position:fixed;inset:0;z-index:2147483350;background:#000;display:flex;align-items:center;justify-content:center;
-      color:rgba(255,255,255,.42);font-size:16px;letter-spacing:.22em;font-family:${FONT_STACK};cursor:default}
-    .dp-help{position:fixed;inset:0;z-index:2147483500;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;
-      font-family:${FONT_STACK}}
-    .dp-help .card,.dp-card .card{background:#1f1f1f;color:#eee;border:1px solid rgba(255,255,255,.12);border-radius:12px;
-      padding:26px 34px;min-width:420px;max-width:560px;box-shadow:0 12px 32px rgba(0,0,0,.5)}
+      color:rgba(255,255,255,.55);font-size:15px;letter-spacing:.3em;font-family:${FONT_STACK};cursor:default;
+      animation:dpFade 400ms ease both}
+    @keyframes dpFade{from{opacity:0}to{opacity:1}}
+    @keyframes dpCardIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
+    @keyframes dpRise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes dpRiseCentered{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+    .dp-help{position:fixed;inset:0;z-index:2147483500;background:rgba(8,14,32,.66);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+      display:flex;align-items:center;justify-content:center;font-family:${FONT_STACK}}
+    .dp-help .card,.dp-card .card{position:relative;background:linear-gradient(165deg,#16233F,#0F1B33);color:#EAF0F8;
+      border:1px solid rgba(123,160,230,.22);border-radius:16px;
+      padding:26px 34px;min-width:420px;max-width:560px;box-shadow:0 24px 64px rgba(0,0,0,.55);
+      animation:dpCardIn 200ms cubic-bezier(.2,.7,.3,1) both}
     .dp-help h3,.dp-card h3{margin:0 0 16px;font-size:16px;font-weight:700;color:#fff;letter-spacing:.06em}
     .dp-help table{border-collapse:collapse;font-size:13px;line-height:2}
     .dp-help td{padding:0 8px}
     .dp-help td:first-child{text-align:right;color:rgba(255,255,255,.55);font-family:ui-monospace,Menlo,monospace;white-space:nowrap}
-    .dp-help tr.grp td{padding-top:10px;color:rgba(255,255,255,.38);font-size:12px;letter-spacing:.2em;text-align:left}
+    .dp-help tr.grp td{padding-top:10px;color:rgba(123,160,230,.55);font-size:12px;letter-spacing:.2em;text-align:left}
     .dp-help .tip,.dp-card .tip{margin-top:14px;font-size:12px;color:rgba(255,255,255,.45);line-height:1.8}
-    .dp-card{position:fixed;inset:0;z-index:2147483450;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;
-      font-family:${FONT_STACK}}
+    .dp-help .about{margin-top:18px;padding-top:14px;border-top:1px solid rgba(255,255,255,.12);font-size:12px;line-height:2;color:rgba(255,255,255,.55)}
+    .dp-help .about a{color:#7BA0E6;text-decoration:none}
+    .dp-help .about a:hover{text-decoration:underline}
+    .dp-help .a-ver{display:inline-block;padding:1px 8px;margin-left:6px;border-radius:999px;font-size:10px;background:rgba(123,160,230,.16);color:#7BA0E6}
+    .dp-help .a-line.dim{color:rgba(255,255,255,.35)}
+    .dp-help .x{position:absolute;right:14px;top:12px;appearance:none;background:transparent;border:0;color:rgba(255,255,255,.4);
+      font-size:18px;line-height:1;cursor:pointer;padding:2px 6px}
+    .dp-help .x:hover{color:#fff}
+    .dp-card{position:fixed;inset:0;z-index:2147483450;background:rgba(8,14,32,.66);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+      display:flex;align-items:center;justify-content:center;font-family:${FONT_STACK}}
     .dp-card p{margin:0 0 18px;font-size:14px;line-height:1.9;color:rgba(255,255,255,.78)}
-    .dp-card .btns{display:flex;gap:10px;justify-content:flex-end}
-    .dp-card .btns button{appearance:none;font:inherit;font-size:13px;padding:8px 18px;border-radius:8px;cursor:pointer;
+    .dp-card .btns,.dp-help .btns{display:flex;gap:10px;justify-content:flex-end}
+    .dp-card .btns button,.dp-help .btns button{appearance:none;font:inherit;font-size:13px;padding:8px 18px;border-radius:8px;cursor:pointer;
       border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.06);color:#ddd}
-    .dp-card .btns button:hover{background:rgba(255,255,255,.14);color:#fff}
-    .dp-card .btns button.pri{background:#fff;border-color:#fff;color:#111;font-weight:600}
-    .dp-card .btns button.pri:hover{background:rgba(255,255,255,.88)}
+    .dp-card .btns button:hover,.dp-help .btns button:hover{background:rgba(255,255,255,.14);color:#fff}
+    .dp-card .btns button.pri{background:#4874CB;border-color:#4874CB;color:#fff;font-weight:600}
+    .dp-card .btns button.pri:hover{background:#5A85D8;border-color:#5A85D8}
     .dp-toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);z-index:2147483600;display:flex;flex-direction:column;
       gap:8px;align-items:center;font-family:${FONT_STACK};pointer-events:none}
-    .dp-toast .t{display:flex;align-items:flex-start;gap:12px;background:rgba(28,28,28,.96);color:#eee;font-size:13px;line-height:1.8;
-      padding:10px 18px;border-radius:10px;border:1px solid rgba(255,255,255,.14);box-shadow:0 8px 24px rgba(0,0,0,.4);
-      max-width:min(620px,84vw);pointer-events:auto}
+    .dp-toast .t{display:flex;align-items:flex-start;gap:12px;background:rgba(20,31,54,.94);color:#EAF0F8;font-size:13px;line-height:1.8;
+      backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+      padding:10px 18px;border-radius:10px;border:1px solid rgba(123,160,230,.25);border-left:3px solid #4874CB;
+      box-shadow:0 8px 24px rgba(8,14,32,.45);max-width:min(620px,84vw);pointer-events:auto;
+      animation:dpRise 220ms cubic-bezier(.2,.7,.3,1) both}
     .dp-toast .t button{appearance:none;flex:none;background:transparent;border:0;color:rgba(255,255,255,.5);font-size:16px;
       line-height:1.4;cursor:pointer;padding:0 2px}
     .dp-toast .t button:hover{color:#fff}
-    .dp-jumphint{position:fixed;left:50%;bottom:78px;transform:translateX(-50%);z-index:2147483200;background:#000;color:#fff;
-      font-size:14px;font-variant-numeric:tabular-nums;padding:8px 18px;border-radius:8px;border:1px solid rgba(255,255,255,.2);
+    .dp-jumphint{position:fixed;left:50%;bottom:78px;transform:translateX(-50%);z-index:2147483200;background:rgba(15,27,51,.88);color:#fff;
+      backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+      font-size:14px;font-variant-numeric:tabular-nums;padding:8px 18px;border-radius:8px;border:1px solid rgba(123,160,230,.3);
       font-family:${FONT_STACK}}
-    .dp-bubble{position:fixed;left:50%;bottom:78px;transform:translateX(-50%);z-index:2147483100;background:rgba(28,28,28,.96);
-      color:#eee;font-size:13px;padding:8px 16px;border-radius:8px;border:1px solid rgba(255,255,255,.16);font-family:${FONT_STACK}}
+    .dp-bubble{position:fixed;left:50%;bottom:78px;transform:translateX(-50%);z-index:2147483100;background:rgba(15,27,51,.9);
+      backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);animation:dpRiseCentered 220ms cubic-bezier(.2,.7,.3,1) both;
+      color:#EAF0F8;font-size:13px;padding:8px 16px;border-radius:8px;border:1px solid rgba(123,160,230,.25);font-family:${FONT_STACK}}
     .dp-clicklayer{position:fixed;inset:0;z-index:2147483650;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;
       color:#fff;font-size:20px;letter-spacing:.12em;cursor:pointer;font-family:${FONT_STACK}}
     html.dp-nocursor,html.dp-nocursor *{cursor:none !important}
+    @media (prefers-reduced-motion:reduce){.dp-bar,.dp-help .card,.dp-card .card,.dp-toast .t,.dp-bubble,.dp-end{transition:none !important;animation:none !important}}
     @media print{.dp-bar,.dp-black,.dp-help,.dp-card,.dp-toast,.dp-jumphint,.dp-bubble,.dp-end,.dp-clicklayer{display:none !important}}
   `;
   document.head.appendChild(css);
-
-  function post(win, msg) {
-    if (!win) return;
-    try { win.postMessage(msg, '*'); } catch (e) {}
-  }
 
   /* ── 抑制上游英文导航胶囊（不改上游文件；shadowRoot 为 open 时生效） ── */
   function suppressStageOverlay() {
@@ -1202,8 +1241,9 @@
     helpEl.className = 'dp-help export-hidden';
     helpEl.setAttribute('data-omelette-chrome', '');
     helpEl.innerHTML = `
-      <div class="card">
-        <h3>放映快捷键</h3>
+      <div class="card" role="dialog" aria-label="快捷键与关于">
+        <button class="x" data-close title="关闭（Esc）">×</button>
+        <h3>快捷键与关于</h3>
         <table>
           <tr class="grp"><td colspan="2">翻页</td></tr>
           <tr><td>→ ↓ 空格 Enter PgDn</td><td>下一页</td></tr>
@@ -1219,12 +1259,30 @@
           <tr><td>B</td><td>黑屏 / 恢复</td></tr>
           <tr><td>Esc</td><td>退出放映（双屏放映中：第一次退全屏，再按一次退出）</td></tr>
           <tr class="grp"><td colspan="2">其他</td></tr>
-          <tr><td>H 或 ?</td><td>本帮助</td></tr>
+          <tr><td>H 或 ?</td><td>帮助与关于</td></tr>
+          <tr><td>⌘P / Ctrl+P</td><td>导出 PDF（每页一片、1920×1080、无边距）</td></tr>
         </table>
+        <div class="btns" style="margin-top:14px;justify-content:flex-start"><button data-hact="print">导出 PDF（浏览器打印）</button></div>
         <div class="tip">远程会议：按 P 选“演讲者视图＋窗口放映”，在会议软件中共享放映窗口，讲稿留在本机。首次使用“演讲者放映”会请求“窗口管理”权限，建议正式汇报前先试一次完成授权。若权限被拒：地址栏左侧 ⓘ → 网站设置 → 窗口管理 → 允许，然后刷新。${wmOk ? '' : '当前浏览器不支持自动双屏（建议 Chrome/Edge）：按 P 打开演讲者视图后手动拖窗。'}F5 为浏览器刷新，放映请用 F / P。</div>
+        <div class="about">
+          <div class="a-name">咨询汇报 HTML 幻灯片播放器 <span class="a-ver">v${VERSION}</span></div>
+          <div class="a-line">设计与实现 曾子轩 · <a href="https://zixuan.net" target="_blank" rel="noopener">zixuan.net</a></div>
+          <div class="a-line">开源技能包 <a href="https://github.com/sinnohzeng/consulting-deck-skill" target="_blank" rel="noopener">github.com/sinnohzeng/consulting-deck-skill</a></div>
+          <div class="a-line dim">播放内核 deck-stage（上游组件）· 放映增强 deck-presenter</div>
+        </div>
       </div>
     `;
-    helpEl.addEventListener('click', () => toggleHelp());
+    helpEl.addEventListener('click', (e) => {
+      const c = (sel) => e.target.closest && e.target.closest(sel);
+      if (c('a')) return; // 关于区链接放行（file:// 下照常新标签打开）
+      if (c('[data-hact="print"]')) {
+        toggleHelp(); // 先收帮助层再唤起打印，避免帮助层被打印进 PDF
+        setTimeout(() => { try { window.print(); } catch (err) { /* 无打印环境（无头）静默 */ } }, 80);
+        return;
+      }
+      // 背景或 × 才关闭；卡片主体可自由点选复制，不误关
+      if (e.target === helpEl || c('[data-close]')) toggleHelp();
+    });
     document.body.appendChild(helpEl);
   }
 
@@ -1328,8 +1386,7 @@
     stage.goTo(n - 1);
   }
   window.addEventListener('keydown', (e) => {
-    const t = e.target;
-    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    if (isTypingTarget(e.target)) return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     const k = e.key;
     if (/^[0-9]$/.test(k)) {
@@ -1355,8 +1412,7 @@
 
   /* ── 放映结束页：末页再前进（捕获阶段拦截 deck-stage 自处理的键） ── */
   window.addEventListener('keydown', (e) => {
-    const t = e.target;
-    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    if (isTypingTarget(e.target)) return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     if (!presenting()) return; // 结束屏在任意放映态（含窗口放映）生效
     const k = e.key;
@@ -1374,8 +1430,7 @@
 
   /* ── 键盘增强：只补 deck-stage 未占用的键 ── */
   window.addEventListener('keydown', (e) => {
-    const t = e.target;
-    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    if (isTypingTarget(e.target)) return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     const k = e.key;
     if (blackCover && (k !== 'b' && k !== 'B' && k !== 'Escape')) { setBlackout(false); }
@@ -1404,7 +1459,9 @@
     if (handled) e.preventDefault();
   });
 
-  /* ── 滚轮翻页：累积阈值 + 冷却；末页前进在放映态出结束页 ── */
+  /* ── 滚轮翻页：累积阈值 + 冷却；末页前进在放映态出结束页 ──
+   * 骨架与演讲者窗另有一份镜像（阈值 50 / 冷却 450ms），改动请两处同步；
+   * 两份 ignore 路径语义不同（此处让行 rail/ctxmenu，讲者窗让行逐字稿/网格），不抽象。 */
   let wheelAcc = 0, wheelCool = 0;
   window.addEventListener('wheel', (e) => {
     if (e.ctrlKey) return; // 捏合缩放
@@ -1459,7 +1516,7 @@
     const bubble = document.createElement('div');
     bubble.className = 'dp-bubble export-hidden';
     bubble.setAttribute('data-omelette-chrome', '');
-    bubble.textContent = '按 H 查看快捷键';
+    bubble.textContent = '按 H 查看快捷键与关于';
     bubble.style.left = bar.style.left || '50%';
     document.body.appendChild(bubble);
     setTimeout(() => {
@@ -1475,6 +1532,6 @@
     startFullscreenShow,
     startSpeakerShow,
     getState: () => ({ mode: showMode, fs: isFs(), userExited }),
-    version: 3
+    version: VERSION
   };
 })();

@@ -9,8 +9,8 @@
 - **标题/文字**：`eyebrow` `title` `rule` `sub` `kicker` `sans` `accent` `mega`
 - **收口强调**：`take`（lab/ph）`band`（blab）`redline`（lab/ph）
 - **页脚**：`foot-logo` `brand` `nav`（`cur` `rp`）`src`（来源行，默认隐藏备用）
-  `pg`（页码，默认隐藏备用）`cover-logo` `close-logo` `cover-mark`
-  `cover-hero` `lift` `cover-eyebrow-mark` `cover-foot-logo`
+  `pg`（页码，默认隐藏备用）`cover-logo` `close-logo`
+  `cover-hero` `lift` `cover-foot-logo`
 - **网格/清单**：`grid` `num-item`（n）`concl` `toc-row`（tn/tt/ts）`kv`（k/v）
   `badges`（blab/bd）`chips` `chip`
 - **表格族**：`mck` + 修饰 `tight` `ops` `cmp` `budget`（grp/sum）`grouped`（gs/hl）

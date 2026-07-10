@@ -19,6 +19,9 @@
   `X` 交换屏幕防投反、`B` 黑屏双窗同步、数字缓冲跳页、放映结束屏、失联/误退一键恢复、`H` 帮助；
   单屏/镜像/Safari/授权被拒自动降级为手动双屏流程）
 - **核验脚本**：放映增强层无头断言（全绿硬闸门）+ 无头 Chromium 逐页几何探测（防内容撑进页脚）+ 逐页截图溢出报告
+- **PDF 导出**：`scripts/export-pdf.mjs` 一次产出纯幻灯片 PDF（16:9 满幅矢量，无黑边）
+  与**逐字稿二合一 handout**（A4 横版：上片下稿，逐字稿自适应排版），`--rp` 出分报告子集，
+  自带页数/尺寸/溢出硬闸校验与 PDF 元数据；现场应急走浏览器 `⌘P` 或帮助浮层「导出 PDF」按钮
 - **品牌中立**：logo/机构名为占位设计，深色背景为纯 CSS 渐变，替换品牌只要三步（见下）
 
 ## 快速开始（人类）
@@ -43,6 +46,13 @@ open consulting-deck-skill/template.html   # 直接看 12 页母版演示（速�
 > 基于 template.html 和 references/ 里的母版制作幻灯片。
 
 SKILL.md 为平台中立写法（纯文件操作 + bash 命令），不依赖任何特定智能体框架。
+
+打包交付请用 `git archive`（只含仓库跟踪文件，自动排除核验依赖 node_modules、
+审计截图 `_audit/` 等数十 MB 本地产物）：
+
+```bash
+git -C consulting-deck-skill archive --format=zip -o ../consulting-deck-skill.zip HEAD
+```
 
 ## 换成贵司品牌（三步）
 
@@ -69,7 +79,7 @@ SKILL.md 为平台中立写法（纯文件操作 + bash 命令），不依赖任
 | `assets/deck-presenter.js` | 放映增强层（本仓维护，只走 deck-stage 公开协议） |
 | `assets/logos/` `assets/backgrounds/` | 占位标识 SVG / 波浪装饰 PNG |
 | `references/` | 母版登记表 · 组件手册 · token 规范 · 放映指南 · 自检清单 |
-| `scripts/` | verify-presenter.mjs（放映层断言）· measure-geometry.mjs（几何硬闸门）· capture-deck.mjs（截图审阅） |
+| `scripts/` | verify-presenter.mjs（放映层断言）· measure-geometry.mjs（几何硬闸门）· capture-deck.mjs（截图审阅）· export-pdf.mjs（PDF 导出，自校验硬闸） |
 
 ## 设计上的几个关键决策
 
@@ -89,12 +99,14 @@ SKILL.md 为平台中立写法（纯文件操作 + bash 命令），不依赖任
 ## 维护
 
 - **同步上游播放器**：拿到新版 `deck-stage.js` 后整文件覆盖 `assets/deck-stage.js`，
-  跑一遍 `scripts/` 三个脚本（verify-presenter 必跑——控制条依赖上游 shadow 结构）
+  跑一遍 `scripts/` 四个脚本（verify-presenter 必跑——控制条依赖上游 shadow 结构；
+  export-pdf 对 template.html 冒烟 = 两族各 12 页、exit 0）
   + 手动过一遍 `template.html` 即可。
 - **改设计系统**：只改 `template.html` 的 `<style>`；组件类增删同步更新
   `references/components.md` 清单。
 
 ## 许可
 
-代码与文档以 [MIT 协议](LICENSE)开源。`assets/backgrounds/wave.png` 为通用几何波浪纹理。
+代码与文档以 [MIT 协议](LICENSE)开源。作者：曾子轩（[zixuan.net](https://zixuan.net)）。
+`assets/backgrounds/wave.png` 为通用几何波浪纹理。
 阿里巴巴普惠体不随仓分发，请从官方渠道获取（免费商用授权）。
