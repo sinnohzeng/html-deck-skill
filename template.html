@@ -635,5 +635,16 @@ section{background:var(--paper)}
 </script>
 <script src="assets/deck-stage.js"></script>
 <script src="assets/deck-presenter.js"></script>
+<script>
+// 兜底：接收方只拷了 HTML 未带 assets 文件夹时（deck-stage 未定义、页面完全不能翻页），顶部给出明确指引。
+window.addEventListener('load', function () {
+  if (window.customElements && customElements.get('deck-stage')) return;
+  var bn = document.createElement('div');
+  bn.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:2147483647;background:#4a3200;color:#ffd591;' +
+    'font:14px/1.8 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif;padding:10px 20px;text-align:center';
+  bn.textContent = '资源文件缺失：请将本文件与 assets 文件夹一起拷贝后重新打开。';
+  document.body.appendChild(bn);
+});
+</script>
 </body>
 </html>

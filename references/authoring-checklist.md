@@ -4,6 +4,8 @@
 
 ## P0 · 硬闸门
 
+- [ ] `node scripts/verify-presenter.mjs <deck>`：放映增强层 45 项断言全绿
+      （上游 deck-stage.js 整文件覆盖升级后必重跑）
 - [ ] `node scripts/measure-geometry.mjs <deck>`：每页 footGap/headGap > 15，无负数
 - [ ] `node scripts/capture-deck.mjs <deck> audit`：无 `so>2`；逐张 PNG 肉眼过
 - [ ] `#speaker-notes` 项数 == `<section>` 数（SKILL.md Step 4 的一行自检命令）
@@ -32,7 +34,9 @@
 
 ## P3 · 放映体验
 
-- [ ] 双击打开无白屏/闪烁；字体加载后无布局跳动
-- [ ] `F` 全屏、`P` 演讲者视图、双窗同步、`B` 黑屏各试一次
+- [ ] 双击打开无白屏/闪烁；字体加载后无布局跳动；只出现一条中文控制条（无英文 Reset 胶囊）
+- [ ] `F` 全屏放映、`B` 黑屏、数字跳页、末页结束屏各试一次
+- [ ] **真双屏实测**（需外接屏，扩展模式）：`P` 一键双屏开播、「交换屏幕」、
+      「结束放映」、误按 Esc 后「重新放映」各试一次；单屏环境至少验降级选择卡
 - [ ] `⌘P` 打印预览：每页一片、无空白尾页
 - [ ] 触屏设备（如现场用平板）：左右半屏点按可翻页

@@ -13,8 +13,11 @@
 - **12 个注册母版**：项目总封面 / 报告封面 / 议程 / 分节 / 正文 / 表格比选 / 双栏对比 /
   三卡比选 / 路线图 / 大数字 / 结论 / 结束页（另有 4 个扩展组件页型）
 - **播放器**：`deck-stage.js`（上游播放器组件）+ `deck-presenter.js`（本仓扩展：
-  `F` 全屏、滚轮/↑↓/Enter 翻页、`P` 双屏演讲者视图〔逐字稿+计时器+下一页预览〕、`B` 黑屏、`H` 帮助）
-- **核验脚本**：无头 Chromium 逐页几何探测（防内容撑进页脚）+ 逐页截图溢出报告
+  统一中文控制条、`F` 从当前页全屏放映、`P` **一键双屏演讲者放映**〔Window Management API：
+  幻灯片自动投外屏 + 演讲者视图落本机，逐字稿/计时器/下一页预览/所有页面网格〕、
+  `X` 交换屏幕防投反、`B` 黑屏双窗同步、数字缓冲跳页、放映结束屏、失联/误退一键恢复、`H` 帮助；
+  单屏/镜像/Safari/授权被拒自动降级为手动双屏流程）
+- **核验脚本**：放映增强层 45 项无头断言 + 无头 Chromium 逐页几何探测（防内容撑进页脚）+ 逐页截图溢出报告
 - **品牌中立**：logo/机构名为占位设计，深色背景为纯 CSS 渐变，替换品牌只要三步（见下）
 
 ## 快速开始（人类）
@@ -65,7 +68,7 @@ SKILL.md 为平台中立写法（纯文件操作 + bash 命令），不依赖任
 | `assets/deck-presenter.js` | 放映增强层（本仓维护，只走 deck-stage 公开协议） |
 | `assets/logos/` `assets/backgrounds/` | 占位标识 SVG / 波浪装饰 PNG |
 | `references/` | 母版登记表 · 组件手册 · token 规范 · 放映指南 · 自检清单 |
-| `scripts/` | measure-geometry.mjs（几何硬闸门）· capture-deck.mjs（截图审阅） |
+| `scripts/` | verify-presenter.mjs（放映层断言）· measure-geometry.mjs（几何硬闸门）· capture-deck.mjs（截图审阅） |
 
 ## 设计上的几个关键决策
 
@@ -73,7 +76,9 @@ SKILL.md 为平台中立写法（纯文件操作 + bash 命令），不依赖任
    ——源自"可读副本与内联样式双源漂移"的实际教训。
 2. **上游/扩展分层**：`deck-stage.js` 保持原样（未来上游更新可整文件覆盖），
    全部本地功能在 `deck-presenter.js`，只通过公开 API（`goTo`）、`slidechange` 事件与
-   postMessage 协议交互，零侵入。
+   postMessage 协议交互，零侵入。唯一例外：为用统一中文控制条替代上游英文导航胶囊，
+   向其 open shadowRoot 运行时注入一条 `.overlay{display:none}` 样式——不改上游文件，
+   上游若升级为 closed shadow 自动退化为双胶囊并存（verify-presenter 会报警）。
 3. **演讲者视图不走 iframe**：`?presenter=1` 窗口加载同一 HTML 文件，用本文档 DOM
    克隆 + transform 缩放渲染当前/下一页预览；双窗口经 `postMessage('*')` 同步，
    在 `file://` 双击场景下稳定可用（BroadcastChannel 在 file 协议下不可用）。
@@ -83,7 +88,8 @@ SKILL.md 为平台中立写法（纯文件操作 + bash 命令），不依赖任
 ## 维护
 
 - **同步上游播放器**：拿到新版 `deck-stage.js` 后整文件覆盖 `assets/deck-stage.js`，
-  跑一遍 `scripts/` 两个脚本 + 手动过一遍 `template.html` 即可。
+  跑一遍 `scripts/` 三个脚本（verify-presenter 必跑——控制条依赖上游 shadow 结构）
+  + 手动过一遍 `template.html` 即可。
 - **改设计系统**：只改 `template.html` 的 `<style>`；组件类增删同步更新
   `references/components.md` 清单。
 
