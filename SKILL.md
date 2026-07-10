@@ -117,7 +117,8 @@ consulting-deck-skill/
 │   └── authoring-checklist.md      ← 交付自检清单
 └── scripts/
     ├── measure-geometry.mjs        ← 几何核验（footGap/headGap，硬闸门）
-    └── capture-deck.mjs            ← 逐页截图 + 溢出报告
+    ├── capture-deck.mjs            ← 逐页截图 + 溢出报告
+    └── package.json                ← 核验脚本依赖声明（playwright）
 ```
 
 **加载顺序建议**：SKILL.md（本文件）→ layouts.md 挑母版 → 写页 →

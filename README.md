@@ -47,7 +47,9 @@ SKILL.md 为平台中立写法（纯文件操作 + bash 命令），不依赖任
 2. **机构名**：全局搜「机构名称占位」「机构标识占位」替换为机构正名；
 3. **背景（可选）**：深色母版默认是纯 CSS 渐变；需要品牌实景底图时，在模板
    `.bg-cover / .bg-project / .bg-divider / .bg-closing` 恢复
-   `background-image:url(...)` 写法，深色蒙版 `::before` 已就位、文字可读性不受影响。
+   `background-image:url(...)` 写法。其中 `.bg-cover / .bg-divider / .bg-closing`
+   的深色蒙版 `::before` 已就位、文字可读性不受影响；`.bg-project`（项目总封面）
+   按设计不加蒙版，请选明亮通透的底图，白字靠 `.lift` 投影保证可读。
 
 **字体（推荐但不随仓分发）**：推荐阿里巴巴普惠体 3.0——免费商用授权、两枚字重即可
 覆盖全字阶，观感稳重适合汇报场合。从官网下载后放入 `assets/fonts/`，取消模板顶部两行
