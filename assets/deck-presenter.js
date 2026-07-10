@@ -13,33 +13,56 @@
  *     自动退化为双胶囊并存，功能不受影响。
  * 上游 deck-stage.js 未来整文件覆盖升级，本文件无需跟改。
  *
- * 功能（对标 PowerPoint 放映交互）：
+ * 功能（对标 PowerPoint 放映交互，v3 新增「窗口放映」）：
  *   1. 统一控制条   — 底部居中单条胶囊：翻页/页码跳转/回首页/放映/演讲者放映/帮助；
- *                     放映态自动切换为精简放映条（翻页/黑屏/退出）
- *   2. 放映         — F 从当前页全屏放映（≈PPT Shift+F5）；Shift+F 从头放映（≈F5）
- *   3. 演讲者放映   — P 一键双屏（Window Management API，Chrome 100+）：
- *                     幻灯片全屏投观众屏 + 演讲者视图落本机屏；
- *                     单屏/镜像/Safari/授权被拒自动降级为手动双屏流程
- *   4. 交换屏幕     — X 键或演讲者视图按钮，一键对调两屏内容（防投反）；
+ *                     放映态自动切换为精简放映条（翻页/黑屏/全屏⇄窗口/退出）
+ *   2. 放映         — F 从当前页全屏放映（≈PPT Shift+F5）；Shift+F 从头放映（≈F5）；
+ *                     放映中 F = 全屏⇄窗口放映切换（退出统一走 Esc / 退出按钮）
+ *   3. 窗口放映     — 放映视觉态与 OS 全屏解耦（上游 __omelette_presenting 消息
+ *                     与全屏零耦合、无需手势）：干净画布满窗、无缩略图栏。远程
+ *                     会议在会议软件中共享本窗口即用此态；进入放映后窗口标题加
+ *                     “（放映窗口）”后缀，共享选择器里与“（演讲者视图）”正向可辨
+ *   4. 演讲者放映   — P 一键双屏（Window Management API，Chrome 100+）：
+ *                     幻灯片全屏投观众屏 + 演讲者视图落本机屏；单屏/镜像弹选择卡
+ *                     （远程会议选“演讲者视图＋窗口放映”）；Safari/授权被拒降级为
+ *                     手动双屏流程（主窗自动进入窗口放映）
+ *   5. 交换屏幕     — X 键或演讲者视图按钮，一键对调两屏内容（防投反）；
  *                     受限时自动降级为放映屏点击层确认
- *   5. 演讲者视图   — ?presenter=1 伴随窗：当前页 + 下一页 + 逐字稿 + 计时器 +
- *                     所有页面网格 + 交换屏幕/结束放映 + 失联恢复
- *   6. 翻页优化     — 滚轮翻页（阈值+冷却）；↑/↓、Enter/Backspace；
+ *   6. 演讲者视图   — ?presenter=1 伴随窗：当前页 + 下一页 + 逐字稿 + 计时器 +
+ *                     所有页面网格 + 交换屏幕/结束放映 + 失联恢复 + 主窗状态横幅
+ *   7. 翻页优化     — 滚轮翻页（阈值+冷却）；↑/↓、Enter/Backspace；
  *                     数字键缓冲跳页（如 3→7→Enter 跳第 37 页）；页码单击输入跳转
- *   7. 黑屏         — B 键（双窗状态双向同步；任意翻页键恢复）
- *   8. 放映结束页   — 放映态末页再前进出黑色结束屏，再按一次退出放映
- *   9. 快捷键帮助   — H 或 ? 键
+ *   8. 黑屏         — B 键（双窗状态双向同步；任意翻页键恢复）
+ *   9. 放映结束页   — 放映态（含窗口放映）末页再前进出结束屏，再按一次退出放映
+ *  10. 快捷键帮助   — H 或 ? 键
+ *
+ * 状态模型（showMode × 是否 OS 全屏 isFs()，5 个合法状态）：
+ *   S0 idle×window 浏览态 ｜ S1 show×window 窗口放映 ｜ S2 show×fs 全屏放映
+ *   S3 speaker×window 窗口放映＋讲者窗（远程会议核心态）｜ S4 speaker×fs 双屏放映
+ *   关键边：S4 --Esc/系统退全屏--> S3（讲者窗活着=放映不死）；S2 --Esc--> S0（solo
+ *   一步全退）；S2/S4 --F--> S1/S3（keepPresentingOnFsExit 意图标志，不出横幅）；
+ *   S3 --讲者窗关/bye--> S1（放映不断）；S1/S3 --P--> S3（放映中静默开窗，不弹卡）；
+ *   S0 --hello 且 !userExited--> S3。防循环规则：心跳只救「意外掉线」，永不推翻
+ *   「明确退出」—— userExited 置位仅在 exitShowCompletely（唯一退出漏斗），清零
+ *   仅在 enterShow（唯一入场漏斗）与 hello 换源；换源判定因 WindowProxy 跨刷新
+ *   恒等，实际只覆盖「讲者窗反向重开主窗」一种情形。
  *
  * 消息协议（本层自有，__deckp 前缀避免与上游冲突；postMessage '*'，file:// 可用）：
  *   {__deckp_hello:'presenter'}          演讲者窗口 → 放映窗口（握手/心跳/重连）
  *   {__deckp_sync:{index}}               双向；接收方 index 相同则忽略（防回声）
  *   {__deckp_blackout:bool}              双向（黑屏状态同步）
- *   {__deckp_state:{mode,canSwap,slidesLabel,presenterLabel}}
- *                                       放映窗口 → 演讲者窗口（握手/全屏变化/交换后推送）
+ *   {__deckp_state:{mode:'idle'|'show'|'speaker', fs, reason, managed,
+ *                  canSwap, slidesLabel, presenterLabel}}
+ *                                       放映窗口 → 演讲者窗口（握手/状态变化推送）。
+ *                                       reason∈{'system','user-toggle','swap','user-exit',null}；
+ *                                       讲者窗横幅只认边沿：fs true→false 且
+ *                                       reason='system' →“已退出全屏”；mode 非idle→idle
+ *                                       →“放映已结束”；心跳电平（reason=null）不动横幅
  *   {__deckp_swap:true}                  演讲者窗口 → 放映窗口（请求交换屏幕）
  *   {__deckp_swap_pending:true}          放映窗口 → 演讲者窗口（需在放映屏点击确认）
  *   {__deckp_swap_done:{ok,vacated}}     放映窗口 → 演讲者窗口（交换完成，附腾出屏几何）
- *   {__deckp_represent:true}             演讲者窗口 → 放映窗口（误退全屏后一键恢复放映）
+ *   {__deckp_represent:true}             演讲者窗口 → 放映窗口（一键恢复放映：先免手势
+ *                                       恢复窗口放映作硬保底，受管双屏再尝试恢复全屏）
  *   {__deckp_exit:{elapsed}}             演讲者窗口 → 放映窗口（结束放映，附计时）
  *   {__deckp_bye:'presenter'}            演讲者窗口 → 放映窗口（窗口即将关闭）
  *
@@ -227,6 +250,7 @@
     let showWin = window.opener || null;
     let blackout = false;
     let mainMode = 'unknown';   // 放映窗口最近一次广播的模式
+    let mainFs = null;          // 放映窗口最近一次广播的全屏态（null=未知；null→x 不算边沿）
     let canSwap = false;
     let selfExit = false;       // 本窗主动结束放映时，抑制“已退出全屏”横幅
     let gridEl = null;
@@ -290,8 +314,13 @@
 
     /* ── 连接状态 ── */
     const connBtn = $('#pv-conn'), connT = $('#pv-conn-t');
+    function connText() {
+      if (mainMode === 'speaker' || mainMode === 'show') return '已连接 · ' + (mainFs ? '全屏放映' : '窗口放映');
+      if (mainMode === 'idle') return '已连接 · 未在放映';
+      return '已连接';
+    }
     function setConn(ok) {
-      if (ok) { connBtn.removeAttribute('data-off'); connT.textContent = '已连接'; connBtn.title = '点击聚焦放映窗口'; }
+      if (ok) { connBtn.removeAttribute('data-off'); connT.textContent = connText(); connBtn.title = '点击聚焦放映窗口'; }
       else { connBtn.setAttribute('data-off', ''); connT.textContent = '重新打开放映窗口'; connBtn.title = ''; }
     }
     connBtn.addEventListener('click', () => {
@@ -299,22 +328,33 @@
       openShow();
     });
 
-    /* ── 放映窗口状态广播处理 ── */
+    /* ── 放映窗口状态广播处理（横幅触发/清除都只认边沿，心跳电平不动横幅） ── */
     function applyState(st) {
       canSwap = !!st.canSwap;
       swapBtn.hidden = !canSwap;
       swapBtn.title = canSwap
         ? ('一键对调两个屏幕的内容（X）' + (st.slidesLabel ? '｜观众屏：' + st.slidesLabel : ''))
         : '';
-      if (mainMode === 'speaker' && st.mode === 'idle' && !selfExit) {
-        showBanner('放映窗口已退出全屏', '重新放映', () => {
+      const wasMode = mainMode, wasFs = mainFs;
+      const fs = st.fs === true;
+      if (st.mode === 'idle' && wasMode !== 'idle' && !selfExit) {
+        // 放映结束边沿（含 unknown→idle：讲者窗刷新后不丢恢复入口）
+        showBanner('放映已结束', '重新放映', () => {
           post(showWin, { __deckp_represent: true });
           hideBanner();
         });
-      } else if (st.mode === 'speaker') {
-        hideBanner();
+      } else if (st.mode === 'speaker' && wasMode === 'speaker' &&
+                 wasFs === true && fs === false && st.reason === 'system') {
+        // 系统性退全屏边沿（误 Esc/拔屏）；F 主动降窗（user-toggle）与交换过程（swap）不报
+        showBanner('放映窗口已退出全屏，放映未中断',
+          st.managed ? '恢复全屏' : '',
+          st.managed ? () => { post(showWin, { __deckp_represent: true }); hideBanner(); } : null);
+      } else if ((fs === true && wasFs === false) || (st.mode !== 'idle' && wasMode === 'idle')) {
+        hideBanner(); // 清除边沿：重新进全屏 / 重新开始放映
       }
       mainMode = st.mode;
+      mainFs = fs;
+      if (showWin && !showWin.closed) setConn(true); // 复合状态文字随播刷新
     }
 
     /* ── 交换屏幕 ── */
@@ -518,6 +558,12 @@
       post(showWin, { __deckp_bye: 'presenter' });
     });
 
+    /* 后台节流自愈加速：讲者窗被会议软件遮挡/最小化时 setInterval 可能被浏览器
+       节流到分钟级，回到前台立即补发一次心跳，加速主窗刷新后的自动拉回。 */
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && showWin && !showWin.closed) post(showWin, { __deckp_hello: 'presenter' });
+    });
+
     /* 握手：向放映窗口报到，放映窗口会回发当前页码与状态 */
     post(showWin, { __deckp_hello: 'presenter' });
     setConn(!!(showWin && !showWin.closed));
@@ -538,10 +584,18 @@
   let endEl = null;
   let toastBox = null;
   let barPin = 0;            // >0 时控制条常显（页码输入 / 首次引导）
-  let showMode = 'idle';     // 'idle' | 'fullscreen' | 'speaker'
+  let showMode = 'idle';     // 'idle' | 'show'(solo 放映) | 'speaker'(带讲者窗)；全屏与否由 isFs() 正交判定
   let pendingMode = null;    // requestFullscreen 发起时预置，fullscreenchange 落地
   let screensCache = null;   // ScreenDetails（授权后缓存，含 screenschange 监听）
   let slidesScreenRef = null, presenterScreenRef = null;
+  let userExited = false;            // 防心跳回拉：明确退出后 hello 不再自动入场（见头注释防循环规则）
+  let keepPresentingOnFsExit = false; // F 主动降窗意图标志（onFsChange 消费后复位）
+  let swapping = false;              // 交换屏幕过程中抑制 'system' 横幅（commit/失败与超时双清）
+  let fsToastShown = false;          // 「已切换为窗口放映」一次性提示（每次打开一次）
+  const baseTitle = document.title;  // 放映窗标题标记的还原基准
+
+  const isFs = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+  const presenting = () => showMode !== 'idle';
 
   const css = document.createElement('style');
   css.textContent = `
@@ -673,8 +727,9 @@
     <button class="browseonly" data-act="home" title="回到第 1 页（R）">回首页<span class="kbd">R</span></button>
     <span class="divider browseonly"></span>
     <button class="browseonly" data-act="show" title="从当前页全屏放映（F）；Shift+点击从头放映">放映<span class="kbd">F</span></button>
-    <button class="browseonly" data-act="speaker" title="双屏放映：观众屏放片，本屏看讲稿（P）">演讲者放映<span class="kbd">P</span></button>
+    <button class="browseonly" data-act="speaker" title="演讲者放映：双屏自动投片看讲稿；单屏／远程会议弹出选择（P）">演讲者放映<span class="kbd">P</span></button>
     <button class="showonly" data-act="black" title="黑屏 / 恢复（B）">黑屏<span class="kbd">B</span></button>
+    <button class="showonly" data-act="fstoggle" title="切换到全屏放映（F）"><span class="fslab">全屏</span><span class="kbd">F</span></button>
     <button class="showonly" data-act="exit" title="退出放映（Esc）">退出放映<span class="kbd">Esc</span></button>
     <span class="divider"></span>
     <button data-act="help" title="快捷键与帮助（H）">?</button>
@@ -748,30 +803,38 @@
   /* ── 全屏放映（F；Shift 从头） ── */
   function startFullscreenShow(fromStart) {
     if (fromStart) stage.goTo(0);
-    if (document.fullscreenElement || document.webkitFullscreenElement) return;
-    pendingMode = 'fullscreen';
+    if (isFs()) return;
+    pendingMode = presenting() ? showMode : 'show'; // 放映中升全屏不降级身份
     const de = document.documentElement;
+    const fail = () => {
+      pendingMode = null;
+      if (presenting()) toast('未能进入全屏，仍为窗口放映');
+    };
     try {
-      const p = (de.requestFullscreen || de.webkitRequestFullscreen || function () {}).call(de);
-      if (p && p.catch) p.catch(() => { pendingMode = null; });
-    } catch (e) { pendingMode = null; }
+      // 受管双屏降窗后再升全屏：回到原观众屏，不盖讲稿屏
+      const opts = (showMode === 'speaker' && slidesScreenRef) ? { screen: slidesScreenRef } : undefined;
+      const p = (de.requestFullscreen || de.webkitRequestFullscreen || function () {}).call(de, opts);
+      if (p && p.catch) p.catch(fail);
+    } catch (e) { fail(); }
   }
-  function exitShow() {
+  function exitFullscreenOnly() {
     try {
       (document.exitFullscreen || document.webkitExitFullscreen || function () {}).call(document);
     } catch (e) {}
   }
   function toggleFullscreen() {
-    if (document.fullscreenElement || document.webkitFullscreenElement) exitShow();
-    else startFullscreenShow(false);
+    if (isFs()) {
+      keepPresentingOnFsExit = presenting(); // 主动降窗：保放映，onFsChange 按此定 reason
+      exitFullscreenOnly();
+    } else startFullscreenShow(false);
   }
 
-  /* ── 光标自动隐藏（仅放映态） ── */
+  /* ── 光标自动隐藏（任意放映态——远程共享时观众看得到光标） ── */
   let cursorTimer = null;
   function cursorWake() {
     document.documentElement.classList.remove('dp-nocursor');
     clearTimeout(cursorTimer);
-    if (document.fullscreenElement || document.webkitFullscreenElement) {
+    if (presenting()) {
       cursorTimer = setTimeout(() => {
         document.documentElement.classList.add('dp-nocursor');
       }, 2000);
@@ -794,10 +857,67 @@
   }
   function finishEndScreen() {
     removeEndScreen();
-    exitShow();
+    exitShowCompletely(''); // 窗口放映态无全屏可退，必须走完整退出漏斗
   }
   const NEXT_KEYS = ['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'Enter'];
   const PREV_KEYS = ['ArrowLeft', 'ArrowUp', 'PageUp', 'Backspace'];
+
+  /* ── 放映态出入口（唯一允许发 __omelette_presenting 的地方） ── */
+  function updateFsBtn() {
+    const fs = isFs();
+    const lab = bar.querySelector('.fslab');
+    if (lab) lab.textContent = fs ? '窗口' : '全屏';
+    const tog = bar.querySelector('[data-act="fstoggle"]');
+    if (tog) tog.title = fs ? '切换到窗口放映，适合在会议软件中共享本窗口（F）' : '切换到全屏放映（F）';
+    // S4（双屏放映×全屏）下 Esc 实为退全屏而非退出放映，隐藏错误键帽
+    const exitKbd = bar.querySelector('[data-act="exit"] .kbd');
+    if (exitKbd) exitKbd.style.display = (fs && showMode === 'speaker') ? 'none' : '';
+  }
+
+  function setPresenting(on) {
+    try { window.postMessage({ __omelette_presenting: on }, '*'); } catch (e) {}
+    if (on) {
+      // 标题标记：会议软件共享选择器里与“（演讲者视图）”正向区分
+      document.title = baseTitle + '（放映窗口）';
+      bar.setAttribute('data-mode', 'show');
+      bar.removeAttribute('data-visible');
+    } else {
+      document.title = baseTitle;
+      bar.removeAttribute('data-mode');
+      flashBar();
+    }
+    updateFsBtn();
+    cursorWake();
+    setTimeout(positionBar, 80); // 等上游 rail 藏/显 reflow 后重定位
+  }
+
+  function enterShow(mode) {          // 唯一入场漏斗；幂等
+    const was = presenting();
+    showMode = mode;
+    userExited = false;
+    if (!was) setPresenting(true);
+    else updateFsBtn();
+    broadcastState(null);
+  }
+
+  function exitShowCompletely(elapsed) { // 唯一退出漏斗（Esc/退出按钮/结束屏/__deckp_exit）
+    if (showMode === 'idle' && !isFs()) return; // 幂等守卫
+    userExited = true;
+    showMode = 'idle';
+    pendingMode = null;
+    if (isFs()) exitFullscreenOnly(); // 异步退全屏；onFsChange 见 idle 不再二次处理
+    setPresenting(false);
+    setBlackout(false);
+    removeEndScreen();
+    broadcastState('user-exit');
+    if (elapsed) toast('放映已结束，共用时 ' + elapsed);
+  }
+
+  function maybeFsDownToast() {       // F 首次降窗的一次性引导（接住旧「F=退出」肌肉记忆）
+    if (fsToastShown) return;
+    fsToastShown = true;
+    toast('已切换为窗口放映，放映未结束——再按 F 回全屏，退出请按 Esc');
+  }
 
   /* ── 演讲者窗口管理 ── */
   function openPresenterWindow(screen) {
@@ -816,20 +936,23 @@
     return w;
   }
 
-  function broadcastState() {
+  function broadcastState(reason) {   // reason 是「本次消息的原因」，心跳/hello 回包恒传 null
     post(presenterWin, { __deckp_state: {
       mode: showMode,
+      fs: isFs(),
+      reason: reason || null,
+      managed: !!slidesScreenRef,
       canSwap: showMode === 'speaker' && !!(screensCache && screensCache.screens.length > 1),
       slidesLabel: (slidesScreenRef && slidesScreenRef.label) || '',
       presenterLabel: (presenterScreenRef && presenterScreenRef.label) || ''
     } });
   }
 
-  /* 演讲者窗口被手关：放映继续（双屏→单屏降级），不弹观众可见的提示 */
+  /* 演讲者窗口被手关：放映继续（speaker→solo 降级），不弹观众可见的提示 */
   setInterval(() => {
     if (presenterWin && presenterWin.closed) {
       presenterWin = null;
-      if (showMode === 'speaker') showMode = 'fullscreen';
+      if (showMode === 'speaker') { showMode = 'show'; updateFsBtn(); }
     }
   }, 2000);
 
@@ -853,8 +976,9 @@
 
   function manualDualFlow(prefix) {
     openPresenterWindow(null);
+    enterShow('speaker'); // 主窗同手势进入窗口放映，不再停浏览态等用户按 F
     toast((prefix ? prefix + '。' : '') +
-      '已打开演讲者视图。请手动完成双屏：① 演讲者视图留在本机屏幕；② 把本窗口拖到投屏；③ 按 F 全屏。翻页两窗自动同步。',
+      '已打开演讲者视图，本窗口已进入窗口放映，翻页两窗自动同步。远程会议：在会议软件中共享本窗口。现场投屏：把本窗口拖到投屏屏幕，按 F 切到全屏。',
       { sticky: true });
   }
 
@@ -870,10 +994,12 @@
     cardEl.innerHTML = `
       <div class="card">
         <h3>未检测到第二个屏幕</h3>
-        <p>若已连接投屏，当前可能处于“镜像”模式——观众与你看到相同画面，无需演讲者视图。若需双屏演讲，请在系统显示设置中改为“扩展”模式后重试。</p>
+        <p>远程会议：选“演讲者视图＋窗口放映”，再在会议软件中共享本窗口——观众只看到干净画面，讲稿留在本机。<br>
+        现场投屏为“镜像”（观众与你同画面）：直接全屏放映即可。<br>
+        需要双屏演讲：在系统显示设置中改为“扩展”后重试。</p>
         <div class="btns">
-          <button data-c="pv">仍打开演讲者视图</button>
-          <button data-c="fs" class="pri">直接全屏放映</button>
+          <button data-c="fs">直接全屏放映</button>
+          <button data-c="pv" class="pri">演讲者视图＋窗口放映</button>
         </div>
         <div class="tip">按 Esc 取消</div>
       </div>
@@ -885,7 +1011,7 @@
       const c = b.getAttribute('data-c');
       closeCard();
       if (c === 'fs') startFullscreenShow(false);
-      else if (c === 'pv') openPresenterWindow(null);
+      else if (c === 'pv') { openPresenterWindow(null); enterShow('speaker'); }
     });
     document.body.appendChild(cardEl);
   }
@@ -893,6 +1019,12 @@
   async function startSpeakerShow() {
     if (showMode === 'speaker' && presenterWin && !presenterWin.closed) {
       try { presenterWin.focus(); } catch (e) {}
+      return;
+    }
+    // 放映中按 P（S1/S3 讲者窗不在）：静默开窗升 speaker，绝不弹选择卡曝光给共享观众
+    if (presenting()) {
+      openPresenterWindow(null);
+      enterShow('speaker');
       return;
     }
     // 分支 1：浏览器不支持多屏 API（Safari / Firefox）
@@ -925,10 +1057,13 @@
       try {
         sd.addEventListener('screenschange', () => {
           if (showMode === 'speaker' && screensCache && screensCache.screens.length < 2) {
-            endShow('');
-            toast('屏幕连接已变化，放映已结束');
+            // 拔屏是系统事件≠用户意图：退全屏、降窗口放映留放映，不走退出漏斗
+            if (isFs()) exitFullscreenOnly();
+            slidesScreenRef = null;
+            presenterScreenRef = null;
+            toast('屏幕连接已变化，已切换为窗口放映');
           }
-          broadcastState();
+          broadcastState(null);
         });
       } catch (e) {}
       // 授权弹窗可能耗尽本次点击手势：判定后走“再点一次”预热兜底
@@ -953,12 +1088,12 @@
     }
     slidesScreenRef = picked.slidesScreen;
     presenterScreenRef = picked.presenterScreen;
-    showMode = 'speaker';
+    enterShow('speaker'); // onFsChange 已经由 pendingMode 先行入场，此处幂等补齐引用后再广播
     const w = openPresenterWindow(picked.presenterScreen);
     if (!w) {
       toast('演讲者窗口被拦截：请允许本文件弹出窗口，或按 P 重试', { sticky: true });
     }
-    broadcastState();
+    broadcastState(null);
   }
 
   /* ── 交换屏幕（Plan A 直接换屏；被拒走 Plan B 放映屏点击层） ── */
@@ -988,11 +1123,17 @@
       left: newPresenter.availLeft, top: newPresenter.availTop,
       width: newPresenter.availWidth, height: newPresenter.availHeight
     };
+    // 换屏中 fs 可能瞬时抖动（true→false→true）：swapping 抑制 'system' 误横幅；
+    // commit/失败与 8s 超时双清（Plan B 用户放弃点击时的残留兜底）
+    swapping = true;
+    const swapTimer = setTimeout(() => { swapping = false; }, 8000);
+    const done = () => { clearTimeout(swapTimer); swapping = false; };
     const commit = () => {
       slidesScreenRef = newSlides;
       presenterScreenRef = newPresenter;
+      done();
       post(presenterWin, { __deckp_swap_done: { ok: true, vacated } });
-      broadcastState();
+      broadcastState(null);
     };
     try {
       await document.documentElement.requestFullscreen({ screen: newSlides });
@@ -1000,43 +1141,39 @@
     } catch (e) {
       post(presenterWin, { __deckp_swap_pending: true });
       clickLayerFullscreen(newSlides, '点击此处完成屏幕交换', commit, () => {
+        done();
         post(presenterWin, { __deckp_swap_done: { ok: false } });
         toast('屏幕交换未完成，请手动调整窗口位置');
       });
     }
   }
 
-  /* ── 结束放映 ── */
-  function endShow(elapsed) {
-    exitShow();
-    showMode = 'idle';
-    pendingMode = null;
-    setBlackout(false);
-    removeEndScreen();
-    broadcastState();
-    if (elapsed) toast('放映已结束，共用时 ' + elapsed);
-  }
-
-  /* ── 全屏状态联动 ── */
+  /* ── 全屏状态联动（__omelette_presenting 已收敛进 setPresenting，此处只管状态迁移） ── */
   const onFsChange = () => {
-    const fs = !!(document.fullscreenElement || document.webkitFullscreenElement);
-    try { window.postMessage({ __omelette_presenting: fs }, '*'); } catch (e) {}
+    const fs = isFs();
     if (fs) {
-      if (pendingMode) { showMode = pendingMode; pendingMode = null; }
-      else if (showMode === 'idle') showMode = 'fullscreen';
-      bar.setAttribute('data-mode', 'show');
-      bar.removeAttribute('data-visible');
+      if (pendingMode) { const m = pendingMode; pendingMode = null; enterShow(m); }
+      else enterShow(presenting() ? showMode : 'show'); // 外因全屏：保身份不降级
     } else {
-      showMode = 'idle';
       pendingMode = null;
-      bar.removeAttribute('data-mode');
-      removeEndScreen();
-      setBlackout(false); // 黑屏中退出放映自动清黑屏
-      flashBar();
+      const keep = keepPresentingOnFsExit; keepPresentingOnFsExit = false;
+      const reason = swapping ? 'swap' : (keep ? 'user-toggle' : 'system');
+      if (showMode === 'speaker' && presenterWin && !presenterWin.closed) {
+        // S4→S3：讲者窗活着=放映不死；黑屏/结束屏保留（放映未结束）
+        updateFsBtn();
+        if (keep) maybeFsDownToast();
+        broadcastState(reason);
+      } else if (presenting() && keep) {
+        // S2→S1：F 主动降窗，solo 也保放映
+        updateFsBtn();
+        maybeFsDownToast();
+        broadcastState(reason);
+      } else if (presenting()) {
+        exitShowCompletely(''); // solo Esc/系统退全屏：一步全退（维持 v2 心智）
+      }
     }
     cursorWake();
     positionBar();
-    broadcastState();
   };
   document.addEventListener('fullscreenchange', onFsChange);
   document.addEventListener('webkitfullscreenchange', onFsChange);
@@ -1075,15 +1212,16 @@
           <tr><td>数字 + Enter</td><td>跳到任意页（如 3、7、Enter 跳第 37 页）</td></tr>
           <tr><td>Home / End / R</td><td>首页 / 末页 / 回首页</td></tr>
           <tr class="grp"><td colspan="2">放映</td></tr>
-          <tr><td>F</td><td>从当前页放映（再按或 Esc 退出）</td></tr>
+          <tr><td>F</td><td>浏览时：从当前页全屏放映；放映中：全屏⇄窗口切换</td></tr>
           <tr><td>Shift+F</td><td>从第 1 页放映</td></tr>
-          <tr><td>P</td><td>演讲者放映（自动双屏：观众屏放片，本屏看讲稿）</td></tr>
+          <tr><td>P</td><td>演讲者放映（双屏自动投片；单屏可选窗口放映，适合远程会议）</td></tr>
           <tr><td>X</td><td>交换两个屏幕的内容</td></tr>
           <tr><td>B</td><td>黑屏 / 恢复</td></tr>
+          <tr><td>Esc</td><td>退出放映（双屏放映中：第一次退全屏，再按一次退出）</td></tr>
           <tr class="grp"><td colspan="2">其他</td></tr>
           <tr><td>H 或 ?</td><td>本帮助</td></tr>
         </table>
-        <div class="tip">首次使用“演讲者放映”会请求“窗口管理”权限，建议正式汇报前先试一次完成授权。若权限被拒：地址栏左侧 ⓘ → 网站设置 → 窗口管理 → 允许，然后刷新。${wmOk ? '' : '当前浏览器不支持自动双屏（建议 Chrome/Edge）：按 P 打开演讲者视图后手动拖窗。'}F5 为浏览器刷新，放映请用 F / P。</div>
+        <div class="tip">远程会议：按 P 选“演讲者视图＋窗口放映”，在会议软件中共享放映窗口，讲稿留在本机。首次使用“演讲者放映”会请求“窗口管理”权限，建议正式汇报前先试一次完成授权。若权限被拒：地址栏左侧 ⓘ → 网站设置 → 窗口管理 → 允许，然后刷新。${wmOk ? '' : '当前浏览器不支持自动双屏（建议 Chrome/Edge）：按 P 打开演讲者视图后手动拖窗。'}F5 为浏览器刷新，放映请用 F / P。</div>
       </div>
     `;
     helpEl.addEventListener('click', () => toggleHelp());
@@ -1103,10 +1241,15 @@
     const d = e.data;
     if (!d) return;
     if (d.__deckp_hello === 'presenter' && e.source && e.source !== window) {
+      if (presenterWin !== e.source) userExited = false; // 换源=新窗口新意图（防护面见头注释）
       presenterWin = e.source;
+      // 电平入场：讲者窗活着 ⇒ 主窗应在放映（窗口放映起步）；明确退出后不再回拉
+      if ((!presenting() && !userExited) || (presenting() && showMode !== 'speaker')) {
+        enterShow('speaker');
+      }
       post(presenterWin, { __deckp_sync: { index: stage.index } });
       if (blackCover) post(presenterWin, { __deckp_blackout: true });
-      broadcastState();
+      broadcastState(null);
     }
     if (d.__deckp_sync && typeof d.__deckp_sync.index === 'number') {
       if (e.source && e.source !== window) presenterWin = e.source;
@@ -1114,24 +1257,28 @@
     }
     if (typeof d.__deckp_blackout === 'boolean') setBlackout(d.__deckp_blackout);
     if (d.__deckp_swap === true) handleSwap();
-    if (d.__deckp_exit) endShow((d.__deckp_exit && d.__deckp_exit.elapsed) || '');
+    if (d.__deckp_exit) exitShowCompletely((d.__deckp_exit && d.__deckp_exit.elapsed) || '');
     if (d.__deckp_bye === 'presenter') {
       presenterWin = null;
-      if (showMode === 'speaker') showMode = 'fullscreen';
+      if (showMode === 'speaker') { showMode = 'show'; updateFsBtn(); } // 放映不断，降 solo
     }
     if (d.__deckp_represent === true) {
-      pendingMode = slidesScreenRef ? 'speaker' : 'fullscreen';
-      const de = document.documentElement;
-      try {
-        const p = de.requestFullscreen(slidesScreenRef ? { screen: slidesScreenRef } : undefined);
-        if (p && p.catch) p.catch(() => {
-          pendingMode = null;
-          clickLayerFullscreen(slidesScreenRef, '点击此处恢复放映', () => {
-            showMode = slidesScreenRef ? 'speaker' : 'fullscreen';
-            broadcastState();
-          }, () => {});
-        });
-      } catch (err) { pendingMode = null; }
+      // 免手势硬保底：先恢复窗口放映（postMessage 即生效，零点击层）
+      enterShow('speaker');
+      if (slidesScreenRef) {
+        // 受管双屏：继续尝试恢复全屏到原观众屏
+        pendingMode = 'speaker';
+        const de = document.documentElement;
+        try {
+          const p = de.requestFullscreen({ screen: slidesScreenRef });
+          if (p && p.catch) p.catch(() => {
+            pendingMode = null;
+            clickLayerFullscreen(slidesScreenRef, '点击此处恢复全屏放映', () => { broadcastState(null); }, () => {});
+          });
+        } catch (err) { pendingMode = null; }
+      } else {
+        toast('已恢复窗口放映；如需全屏请按 F');
+      }
     }
   });
 
@@ -1141,15 +1288,15 @@
     const a = act.getAttribute('data-act');
     if (a === 'prev') stage.prev();
     else if (a === 'next') {
-      if ((document.fullscreenElement || document.webkitFullscreenElement) &&
-          stage.index === stage.length - 1) showEndScreen();
+      if (presenting() && stage.index === stage.length - 1) showEndScreen();
       else stage.next();
     }
     else if (a === 'home') stage.goTo(0);
     else if (a === 'show') startFullscreenShow(e.shiftKey);
     else if (a === 'speaker') startSpeakerShow();
     else if (a === 'black') setBlackout(!blackCover);
-    else if (a === 'exit') exitShow();
+    else if (a === 'fstoggle') toggleFullscreen();
+    else if (a === 'exit') exitShowCompletely('');
     else if (a === 'help') toggleHelp();
     else if (a === 'page') openPgInput();
   });
@@ -1211,7 +1358,7 @@
     const t = e.target;
     if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
-    if (!(document.fullscreenElement || document.webkitFullscreenElement)) return;
+    if (!presenting()) return; // 结束屏在任意放映态（含窗口放映）生效
     const k = e.key;
     if (endEl) {
       if (NEXT_KEYS.indexOf(k) !== -1) { e.preventDefault(); e.stopPropagation(); finishEndScreen(); }
@@ -1235,14 +1382,16 @@
     if (k === 'Escape') {
       if (helpEl) { toggleHelp(); e.preventDefault(); return; }
       if (cardEl) { closeCard(); e.preventDefault(); return; }
-      return; // 全屏退出交给浏览器原生行为
+      if (presenting() && !isFs()) { e.preventDefault(); exitShowCompletely(''); return; } // 窗口放映：Esc=退出（含黑屏中）
+      return; // 全屏退出交给浏览器原生行为（onFsChange 决定降级/退出）
     }
     let handled = true;
     if (k === 'ArrowDown' || k === 'Enter') stage.next();
     else if (k === 'ArrowUp' || k === 'Backspace') stage.prev();
     else if (k === 'f' || k === 'F') {
-      if (document.fullscreenElement || document.webkitFullscreenElement) exitShow();
-      else startFullscreenShow(e.shiftKey);
+      if (e.shiftKey && !isFs()) startFullscreenShow(true);
+      else if (!presenting() && !isFs()) startFullscreenShow(false);
+      else toggleFullscreen(); // 放映中：全屏⇄窗口切换
     }
     else if (k === 'p' || k === 'P') startSpeakerShow();
     else if (k === 'x' || k === 'X') {
@@ -1269,9 +1418,8 @@
     if (Math.abs(wheelAcc) > 50) {
       const fwd = wheelAcc > 0;
       wheelAcc = 0; wheelCool = now + 450;
-      const fs = !!(document.fullscreenElement || document.webkitFullscreenElement);
       if (endEl) { fwd ? finishEndScreen() : removeEndScreen(); return; }
-      if (fwd && fs && stage.index === stage.length - 1) { showEndScreen(); return; }
+      if (fwd && presenting() && stage.index === stage.length - 1) { showEndScreen(); return; }
       fwd ? stage.next() : stage.prev();
     }
   }, { passive: true });
@@ -1326,6 +1474,7 @@
     toggleFullscreen,
     startFullscreenShow,
     startSpeakerShow,
-    version: 2
+    getState: () => ({ mode: showMode, fs: isFs(), userExited }),
+    version: 3
   };
 })();

@@ -7,10 +7,10 @@ description: Builds single-file HTML slide decks in a consulting-grade navy/blue
 
 生成**单文件 HTML** 的 16:9 横向汇报 deck：深蓝（navy）+ 主蓝（teal）咨询风设计系统、
 `deck-stage.js` 播放器（键盘/触屏翻页 + 缩略图栏 + 打印导出）、
-`deck-presenter.js` 放映增强（统一中文控制条、F 全屏放映、P 一键双屏演讲者放映
-〔Window Management API，自动降级〕、X 交换屏幕、B 黑屏、数字缓冲跳页、放映结束屏）。
-双击 HTML 用浏览器打开即放映，无需服务器与构建。品牌位（logo/机构名/背景）为占位设计，
-替换方法见 README「换成贵司品牌」。
+`deck-presenter.js` 放映增强（统一中文控制条、F 全屏⇄窗口放映、P 一键双屏演讲者放映
+〔Window Management API，自动降级〕、窗口放映〔远程会议共享窗口〕、X 交换屏幕、
+B 黑屏、数字缓冲跳页、放映结束屏）。双击 HTML 用浏览器打开即放映，无需服务器与构建。
+品牌位（logo/机构名/背景）为占位设计，替换方法见 README「换成贵司品牌」。
 
 ## 何时使用
 
@@ -82,8 +82,11 @@ node capture-deck.mjs <deck 绝对路径> audit  # 逐页 PNG + so/bo 溢出报�
 ### Step 6 · 放映交付口径
 
 告知使用者：双击打开即放映（推荐 Chrome/Edge），`H` 看快捷键；`F` 从当前页全屏放映
-（适合镜像投屏）；双屏演讲 = 系统显示设为“扩展”后按 `P` **一键双屏**——幻灯片自动
-全屏投外屏、演讲者视图落本机屏，投反了按 `X` 或点「交换屏幕」一键对调；
+（适合镜像投屏；放映中 `F` = 全屏⇄窗口切换）；双屏演讲 = 系统显示设为“扩展”后按
+`P` **一键双屏**——幻灯片自动全屏投外屏、演讲者视图落本机屏，投反了按 `X` 或点
+「交换屏幕」一键对调；远程视频会议 = 按 `P` 选“演讲者视图＋窗口放映”，在会议软件中
+共享放映窗口（标题带“（放映窗口）”后缀的那个）——观众只见干净画面，讲稿留在本机；
+建议先把 deck 拖成独立浏览器窗口再共享，中途查资料用另一个窗口；
 **正式汇报前先在排练时点一次 `P` 完成“窗口管理”授权**（浏览器会记住，正式开播零弹窗）；
 单屏/镜像/Safari/授权被拒会自动降级为手动流程并给指引。PDF = 浏览器打印（每页一片）。
 细节与意外恢复路径见 `references/presenting.md`。
@@ -102,7 +105,8 @@ node capture-deck.mjs <deck 绝对路径> audit  # 逐页 PNG + so/bo 溢出报�
    升级 = 整文件覆盖；本地扩展只进 `assets/deck-presenter.js`。
    上游整文件覆盖后**必须重跑** `node scripts/verify-presenter.mjs template.html`
    （统一控制条依赖上游 open shadowRoot 与 `.overlay` 类名抑制英文导航条，
-   断言不过说明上游结构变了，需调整 presenter 层的抑制选择器）。
+   窗口放映依赖上游 `__omelette_presenting` 消息语义，
+   断言不过说明上游结构变了，需调整 presenter 层的对接点）。
 7. **单一真源**：一个 deck 的样式只在其内联 `<style>`；逐字稿只在 `#speaker-notes`。
 
 ## 资源导览
@@ -113,7 +117,7 @@ consulting-deck-skill/
 ├── template.html                   ← 种子模板：设计系统唯一真源 + 12 页母版示例
 ├── assets/
 │   ├── deck-stage.js               ← 播放器（上游组件，勿改）
-│   ├── deck-presenter.js           ← 放映增强层（全屏/滚轮/演讲者视图/黑屏）
+│   ├── deck-presenter.js           ← 放映增强层（全屏/窗口放映/滚轮/演讲者视图/黑屏）
 │   ├── logos/                      ← 占位标识 SVG（深/浅底各一，替换为贵司 LOGO）
 │   └── backgrounds/                ← 波浪装饰 PNG（深色母版底为纯 CSS 渐变）
 ├── references/
@@ -123,7 +127,7 @@ consulting-deck-skill/
 │   ├── presenting.md               ← 放映/双屏演讲者视图/PDF 导出
 │   └── authoring-checklist.md      ← 交付自检清单
 └── scripts/
-    ├── verify-presenter.mjs        ← 放映增强层 45 项无头断言（控制条/协议/降级链，硬闸门）
+    ├── verify-presenter.mjs        ← 放映增强层无头断言（控制条/协议/窗口放映/降级链，硬闸门须全绿）
     ├── measure-geometry.mjs        ← 几何核验（footGap/headGap，硬闸门）
     ├── capture-deck.mjs            ← 逐页截图 + 溢出报告
     └── package.json                ← 核验脚本依赖声明（playwright）

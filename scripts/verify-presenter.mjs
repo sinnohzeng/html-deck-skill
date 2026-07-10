@@ -1,9 +1,12 @@
 /* 放映增强层核验（交付硬闸门）：无头断言 deck-presenter.js 的控制条 / 协议 / 降级链。
    用法：node verify-presenter.mjs <deck.html 绝对路径>（通常传仓根 template.html）
+        VERIFY_HEADED=1 node verify-presenter.mjs <deck>   # 有头模式，全屏类断言可转硬验证
    覆盖：统一控制条渲染与中文文案、上游导航条抑制（rail 存活）、翻页/回首页/数字缓冲跳页、
    __deckp_sync / __deckp_blackout 协议、单屏降级选择卡 → 演讲者窗口全链（同步/网格/黑屏双向/结束放映）、
-   noscale 不入镜、帮助浮层；全屏为 headless best-effort（失败仅告警不阻塞）。
-   上游 deck-stage.js 整文件覆盖升级后必须重跑本脚本（overlay 抑制依赖其 open shadowRoot 与 .overlay 类名）。 */
+   窗口放映全链（v3：入场/state.fs 字段/横幅零误报/Esc 退出/心跳防循环/represent 免手势恢复/
+   讲者窗关闭降级/退出唯一性）、noscale 不入镜、帮助浮层；全屏为 headless best-effort（失败仅告警不阻塞）。
+   上游 deck-stage.js 整文件覆盖升级后必须重跑本脚本（overlay 抑制依赖其 open shadowRoot 与 .overlay 类名，
+   窗口放映依赖其 __omelette_presenting 消息语义）。 */
 import { chromium } from 'playwright';
 import { pathToFileURL } from 'url';
 
@@ -20,7 +23,7 @@ const soft = (cond, name) => {
   else { warn++; console.log(`  ~ ${name}   （headless 限制，仅告警）`); }
 };
 
-const browser = await chromium.launch();
+const browser = await chromium.launch({ headless: !process.env.VERIFY_HEADED });
 const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
 const page = await ctx.newPage();
 await page.goto(pathToFileURL(deck).href, { waitUntil: 'networkidle' });
@@ -46,6 +49,8 @@ ok(await page.evaluate(() => {
   const b = document.querySelector('.dp-bubble');
   return !!b && b.textContent.includes('按 H 查看快捷键');
 }), '首次打开引导气泡出现');
+ok(await page.evaluate(() =>
+  !!document.querySelector('.dp-bar [data-act="fstoggle"] .fslab')), '全屏⇄窗口切换按钮已就位（showonly）');
 
 console.log('【2】上游导航条抑制（rail 存活）');
 ok(await page.evaluate(() => {
@@ -120,13 +125,13 @@ const [pv] = await Promise.all([
 ]);
 await pv.waitForLoadState('domcontentloaded');
 await pv.waitForTimeout(500);
-ok(true, '「仍打开演讲者视图」弹出伴随窗');
+ok(true, '「演讲者视图＋窗口放映」弹出伴随窗');
 ok(await page.evaluate(() => !document.querySelector('.dp-card')), '选择卡已关闭');
 ok(await pv.evaluate(() => !!document.querySelector('.pv-head') && !!document.querySelector('#pv-notes')), '演讲者窗口 UI 已渲染');
 ok(await pv.evaluate(() => document.querySelector('#pv-swap').hidden === true), '非受管双屏态「交换屏幕」按钮隐藏');
 ok(await pv.evaluate(() => !!document.querySelector('#pv-end-show')), '「结束放映」按钮存在');
 await pv.waitForTimeout(2300); // 等一轮 hello 心跳完成握手
-ok(await pv.evaluate(() => document.querySelector('#pv-conn-t').textContent === '已连接'), '连接状态显示“已连接”');
+ok(await pv.evaluate(() => document.querySelector('#pv-conn-t').textContent === '已连接 · 窗口放映'), '连接状态显示复合态“已连接 · 窗口放映”');
 await pv.evaluate(() => document.querySelector('#pv-nexb').click());
 await page.waitForTimeout(300);
 ok(await page.evaluate(() => document.querySelector('deck-stage').index === 1), '演讲者窗翻页同步放映窗');
@@ -166,13 +171,21 @@ await page.evaluate(() => document.querySelector('deck-stage').setAttribute('nos
 ok(await page.evaluate(() => getComputedStyle(document.querySelector('.dp-bar')).display === 'none'), 'noscale 下控制条隐藏');
 await page.evaluate(() => document.querySelector('deck-stage').removeAttribute('noscale'));
 
-console.log('【8】全屏（headless best-effort）');
+console.log('【8】全屏（headless best-effort；VERIFY_HEADED=1 可转硬验证）');
 await page.keyboard.press('f');
 await page.waitForTimeout(500);
 const fsOk = await page.evaluate(() => !!document.fullscreenElement);
 soft(fsOk, 'F 进入全屏');
 if (fsOk) {
   ok(await page.evaluate(() => document.querySelector('.dp-bar').getAttribute('data-mode') === 'show'), '放映态控制条切精简模式');
+  ok(await page.evaluate(() => (document.querySelector('.dp-bar .fslab') || {}).textContent === '窗口'), '全屏态切换按钮显示「窗口」');
+  await page.keyboard.press('f'); // F 主动降窗（S2→S1）
+  await page.waitForTimeout(500);
+  ok(await page.evaluate(() => !document.fullscreenElement &&
+      window.__deckpPresenter.getState().mode === 'show' &&
+      document.querySelector('.dp-bar').getAttribute('data-mode') === 'show'),
+    'F 主动降窗保放映（keepPresentingOnFsExit）');
+  ok(await page.evaluate(() => (document.querySelector('.dp-bar .fslab') || {}).textContent === '全屏'), '降窗后切换按钮回「全屏」');
   await page.evaluate(() => document.querySelector('deck-stage').goTo(document.querySelector('deck-stage').length - 1));
   await page.waitForTimeout(200);
   await page.keyboard.press('ArrowRight');
@@ -180,11 +193,110 @@ if (fsOk) {
   ok(await page.evaluate(() => {
     const el = document.querySelector('.dp-end');
     return !!el && el.textContent.includes('放映结束');
-  }), '末页再前进出结束屏');
+  }), '末页再前进出结束屏（窗口放映态同样生效）');
   await page.keyboard.press('ArrowRight');
   await page.waitForTimeout(500);
-  ok(await page.evaluate(() => !document.fullscreenElement && !document.querySelector('.dp-end')), '结束屏再前进退出放映');
+  ok(await page.evaluate(() => !document.fullscreenElement && !document.querySelector('.dp-end') &&
+      window.__deckpPresenter.getState().mode === 'idle'), '结束屏再前进完整退出放映');
 }
+
+console.log('【9】窗口放映入场（选择卡「演讲者视图＋窗口放映」路径）');
+await page.evaluate(() => (document.exitFullscreen ? document.exitFullscreen().catch(() => {}) : 0)); // 组前置防御
+await page.waitForTimeout(300);
+ok(await page.evaluate(() => window.__deckpPresenter.getState().mode === 'idle'), '组前置：处于浏览态');
+await page.evaluate(() => {
+  window.__pfCount = 0;
+  window.addEventListener('message', (e) => {
+    if (e.data && e.data.__omelette_presenting === false) window.__pfCount++;
+  });
+});
+await page.evaluate(() => document.querySelector('deck-stage').goTo(0));
+await page.evaluate(() => document.querySelector('.dp-bar [data-act="speaker"]').click());
+await page.waitForTimeout(200);
+ok(await page.evaluate(() => {
+  const c = document.querySelector('.dp-card');
+  return !!c && c.textContent.includes('远程会议') && !!c.querySelector('[data-c="pv"].pri');
+}), '选择卡含远程会议指引且「演讲者视图＋窗口放映」为主按钮');
+const [pv2] = await Promise.all([
+  ctx.waitForEvent('page'),
+  page.evaluate(() => document.querySelector('.dp-card [data-c="pv"]').click()),
+]);
+await pv2.waitForLoadState('domcontentloaded');
+await page.waitForTimeout(400);
+ok(await page.evaluate(() => document.querySelector('.dp-bar').getAttribute('data-mode') === 'show'), '主窗控制条切放映态（窗口放映）');
+ok(await page.evaluate(() => !document.fullscreenElement), '窗口放映不依赖 OS 全屏（fullscreenElement 为空）');
+ok(await page.evaluate(() => {
+  const sr = document.querySelector('deck-stage').shadowRoot;
+  const rail = sr && sr.querySelector('.rail');
+  return !!rail && getComputedStyle(rail).display === 'none';
+}), '缩略图栏已隐藏（__omelette_presenting 生效）');
+ok(await page.evaluate(() => (document.querySelector('.dp-bar .fslab') || {}).textContent === '全屏'), '切换按钮显示「全屏」（当前为窗口态）');
+ok(await page.evaluate(() => window.__deckpPresenter.getState().mode === 'speaker'), 'getState().mode === speaker');
+ok(await page.evaluate(() => document.title.endsWith('（放映窗口）')), '窗口标题加「（放映窗口）」标记（共享选择器可辨）');
+
+console.log('【10】__deckp_state 扩展字段与横幅零误报');
+await pv2.evaluate(() => {
+  window.__lastState = null;
+  window.addEventListener('message', (e) => { if (e.data && e.data.__deckp_state) window.__lastState = e.data.__deckp_state; });
+});
+await pv2.waitForTimeout(4200); // 覆盖两拍 2s 心跳
+ok(await pv2.evaluate(() => window.__lastState && window.__lastState.mode === 'speaker' && window.__lastState.fs === false),
+  '__deckp_state 携带 fs:false 且 mode:speaker');
+ok(await pv2.evaluate(() => !document.querySelector('#pv-banner').hasAttribute('data-on')),
+  '窗口放映常态下讲者窗横幅零误报');
+ok(await pv2.evaluate(() => document.querySelector('#pv-conn-t').textContent === '已连接 · 窗口放映'),
+  '连接按钮复合状态「已连接 · 窗口放映」');
+
+console.log('【11】Esc 退出窗口放映 + 心跳防循环 + 「放映已结束」横幅');
+await page.bringToFront();
+await page.keyboard.press('Escape');
+await page.waitForTimeout(300);
+ok(await page.evaluate(() => !document.querySelector('.dp-bar').hasAttribute('data-mode') &&
+    window.__deckpPresenter.getState().mode === 'idle'), '窗口放映 Esc 退出到浏览态');
+ok(await page.evaluate(() => {
+  const sr = document.querySelector('deck-stage').shadowRoot;
+  const rail = sr && sr.querySelector('.rail');
+  return !!rail && getComputedStyle(rail).display !== 'none';
+}), '缩略图栏恢复可见');
+ok(await page.evaluate(() => !document.title.endsWith('（放映窗口）')), '窗口标题标记已还原');
+ok(await page.evaluate(() => window.__pfCount === 1), '__omelette_presenting:false 只发一次（退出唯一性）');
+await page.waitForTimeout(4200); // 跨两拍心跳
+ok(await page.evaluate(() => {
+  const st = window.__deckpPresenter.getState();
+  return st.mode === 'idle' && st.userExited === true;
+}), '明确退出后心跳不回拉（跨两拍心跳仍 idle）');
+ok(await pv2.evaluate(() =>
+  document.querySelector('#pv-banner').hasAttribute('data-on') &&
+  document.querySelector('#pv-banner-t').textContent.includes('放映已结束') &&
+  document.querySelector('#pv-banner-act').textContent === '重新放映'),
+  '讲者窗「放映已结束」横幅常驻（跨两拍心跳未被电平清除）');
+
+console.log('【12】「重新放映」免手势恢复窗口放映');
+await pv2.evaluate(() => document.querySelector('#pv-banner-act').click());
+await page.waitForTimeout(400);
+ok(await page.evaluate(() => window.__deckpPresenter.getState().mode === 'speaker' && !document.fullscreenElement),
+  'represent 免手势恢复 speaker 窗口放映（零点击层）');
+ok(await page.evaluate(() => {
+  const sr = document.querySelector('deck-stage').shadowRoot;
+  const rail = sr && sr.querySelector('.rail');
+  return !!rail && getComputedStyle(rail).display === 'none';
+}), '缩略图栏再次隐藏');
+ok(await pv2.evaluate(() => !document.querySelector('#pv-banner').hasAttribute('data-on')), '恢复后讲者窗横幅清除');
+
+console.log('【13】讲者窗关闭 → 放映不断（S3→S1）→ Esc 完整退出');
+await pv2.evaluate(() => window.close());
+await page.waitForTimeout(600); // __deckp_bye 即时送达；2s 轮询为兜底
+ok(await page.evaluate(() => window.__deckpPresenter.getState().mode === 'show'), '讲者窗关闭后降 solo 放映（放映不断）');
+ok(await page.evaluate(() => {
+  const sr = document.querySelector('deck-stage').shadowRoot;
+  const rail = sr && sr.querySelector('.rail');
+  return !!rail && getComputedStyle(rail).display === 'none';
+}), '窗口放映视觉态保持（rail 仍隐藏）');
+await page.evaluate(() => { window.__pfCount = 0; });
+await page.keyboard.press('Escape');
+await page.waitForTimeout(300);
+ok(await page.evaluate(() => window.__deckpPresenter.getState().mode === 'idle'), 'S1（solo 窗口放映）下 Esc 退出放映');
+ok(await page.evaluate(() => window.__pfCount === 1), '再次退出仍只发一次 presenting:false');
 
 await browser.close();
 console.log(`\n结果：${pass} 通过 / ${fail} 失败 / ${warn} 告警`);
