@@ -1,0 +1,9 @@
+{
+  "name": "consulting-deck-skill-scripts",
+  "private": true,
+  "type": "module",
+  "description": "无头核验脚本依赖（playwright + Chromium）。首次：npm i && npx playwright install chromium",
+  "dependencies": {
+    "playwright": "^1.60.0"
+  }
+}

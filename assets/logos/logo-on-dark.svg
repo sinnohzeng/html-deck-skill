@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 96" role="img" aria-label="机构标识占位">
+  <!-- 占位标识：替换为贵司正式 LOGO（保持相近宽高比，深浅底各备一版） -->
+  <g fill="none" stroke="#7BA0E6" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="8" y="12" width="72" height="72" rx="14"/>
+    <path d="M26 62 44 32 62 62"/>
+    <path d="M35 62 44 47 53 62" stroke-width="5" opacity=".55"/>
+  </g>
+  <text x="112" y="63" font-family="'PingFang SC','Microsoft YaHei','Noto Sans SC',sans-serif" font-size="42" font-weight="700" fill="#FFFFFF" letter-spacing="6">机构标识占位</text>
+</svg>
