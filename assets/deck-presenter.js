@@ -1,7 +1,7 @@
 /**
  * deck-presenter.js — 咨询汇报 HTML 幻灯片“独立放映增强层”
  * =====================================================================
- * 定位：deck-stage.js（上游播放器 Web Component，勿改）之外的
+ * 定位：deck-stage.js（上游播放器 Web Component，按补丁维护）之外的
  * 本地放映扩展。双击 HTML 直接用浏览器打开即生效，不依赖任何宿主应用。
  *
  * 与上游的边界（零侵入）：只使用 deck-stage 的公开协议 ——
@@ -48,7 +48,7 @@
  *   仅在 enterShow（唯一入场漏斗）与 hello 换源；换源判定因 WindowProxy 跨刷新
  *   恒等，实际只覆盖“讲者窗反向重开主窗”一种情形。
  *
- * 消息协议（本层自有，__dp 前缀避免与上游冲突；postMessage '*'，file:// 可用）：
+ * 消息协议（本层自有，__deckp 前缀避免与上游冲突；postMessage '*'，file:// 可用）：
  *   {__deckp_hello:'presenter'}          演讲者窗口 → 放映窗口（握手/心跳/重连）
  *   {__deckp_sync:{index}}               双向；接收方 index 相同则忽略（防回声）
  *   {__deckp_blackout:bool}              双向（黑屏状态同步）

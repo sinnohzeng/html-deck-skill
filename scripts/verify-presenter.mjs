@@ -102,7 +102,7 @@ await page.evaluate(() => document.querySelector('.dp-bar [data-act="home"]').cl
 await page.waitForTimeout(150);
 ok(await page.evaluate(() => document.querySelector('deck-stage').index === 0), '“回首页”回到第 1 页');
 
-console.log('【4】__dp 协议回归');
+console.log('【4】__deckp 协议回归');
 const syncIdx = Math.min(5, total - 1);
 await page.evaluate((i) => window.postMessage({ __deckp_sync: { index: i } }, '*'), syncIdx);
 await page.waitForTimeout(150);
