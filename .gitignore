@@ -2,3 +2,4 @@ node_modules/
 scripts/_audit/
 assets/fonts/
 .DS_Store
+.verify/

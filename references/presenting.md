@@ -28,6 +28,33 @@
 
 **F5 为浏览器刷新**（刷新后页码经 URL hash 自动恢复，是意外情况下的恢复路径），放映请用 `F` / `P`。
 
+## 手机与平板
+
+讲完之后 deck 常会作为链接流转，绝大多数打开发生在手机上，所以触屏是一等形态，不是降级形态。
+判据用指针粗细 `(pointer: coarse) && !(pointer: fine)`，不用屏幕宽度，桌面窗口拖窄不受影响。
+
+**竖屏＝阅读态。** 幻灯片贴屏幕顶部按屏宽铺满（16:9 在 9:19 的屏上只占约三成高），
+下面七成交给本页逐字稿，正文 16 点可独立滚动。这不是附加功能：上屏只放锚点的 deck
+脱离讲者本就不自足，补的正是这一半。本页没有逐字稿时不建面板，幻灯片回到垂直居中。
+
+**横屏＝观看态。** 幻灯片按屏幕铺满，不显示逐字稿面板。iPhone 横屏实测占屏 82%。
+
+| 手势 / 控件 | 作用 |
+|---|---|
+| 左右滑动 | 上一页 / 下一页（位移 ≥ 48 点且横向大于纵向 1.5 倍才判定） |
+| 点左右半屏 | 上一页 / 下一页 |
+| 逐字稿面板内纵向滑 | 滚动正文，不翻页 |
+| 画布下沿细线 | 当前进度 |
+| 控制条田字格按钮 | 缩略图总览，两列起步，点格跳页 |
+
+触屏上控制条常驻不淡出，并且只保留上一页、页码、下一页、总览、帮助；
+放映、演讲者放映、黑屏、全屏这些上台按钮全部移除，缩略图栏也一律不外露。
+
+**不提供全屏按钮，也不提供锁横屏。** MDN 兼容数据（2026-08-13 拉取）：
+`Element.requestFullscreen` 在 iPhone Safari 上没有实现（仅 iPad 有），
+`ScreenOrientation.lock` 在 Safari 全系不支持。凡是要向平台申请才生效的能力，
+都不能放在主路径上；手机端的横屏只能是布局，不能是按钮。
+
 ## 放映（对标 PowerPoint）
 
 放映有两种**表面**：**全屏放映**（OS 全屏）与**窗口放映**（不进全屏，窗口内干净画布——
@@ -135,6 +162,7 @@ node scripts/export-pdf.mjs <deck.html>            # 两种都导，落 deck 同
 ```bash
 cd scripts && npm i && npx playwright install chromium   # 首次
 node verify-presenter.mjs <deck 绝对路径>   # 放映增强层无头断言（控制条/协议/窗口放映/降级链），须全绿
+node verify-mobile.mjs <deck 绝对路径>      # 手机端形态无头断言（阅读态/滑动/进度/总览），须全绿
 node measure-geometry.mjs <deck 绝对路径>   # 每页 footGap/headGap；负数 = 内容与页眉/页脚重叠
 node capture-deck.mjs <deck 绝对路径> audit # 逐页 PNG 落 scripts/_audit/ + so/bo 溢出报告
 node export-pdf.mjs <deck 绝对路径>         # PDF 导出（自校验页数/尺寸/逐字稿溢出，exit 0 即过）
@@ -144,6 +172,11 @@ node export-pdf.mjs <deck 绝对路径>         # PDF 导出（自校验页数/�
 **so=0 且 bo=0 不代表安全**——居中 body 的表格对称溢出探测不到，以几何量测为准。
 截图逐张肉眼过一遍：字重、间距、对齐、留白，几何全过 ≠ 好看。
 双屏放映路径（授权、交换屏幕）无头测不了，须按 authoring-checklist P3 真双屏过一遍。
+手机端同理：设备模拟能量几何，量不出真机的滚动惯性与地址栏收起，交付前真机各开一次。
+
+**整文件覆盖升级 `deck-stage.js` 之后，两个核验脚本都要重跑。** `verify-presenter.mjs`
+依赖它的 open shadowRoot 与 `.overlay` 类名；`verify-mobile.mjs` 依赖它的 `dock-top`
+属性、`deckfit` 事件与 `fitBox` 属性，缺任何一个都会静默退化成竖屏满屏黑边。
 
 ## 排障附录：多屏 API 在 file:// 下的边界（2026-07-09 实测存档）
 

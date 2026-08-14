@@ -97,6 +97,28 @@
   /* ── 共用：键盘事件是否落在输入类控件（各 keydown 守卫统一用这一份） ── */
   const isTypingTarget = (t) => !!t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
 
+  /* 模态层是否开着。滚轮与翻页键都要先问这一句，否则弹层浮在上面、底下的片子还在翻，
+     用户以为在滚弹层内容，实际把演讲翻走了。
+     判据走 DOM 而不是闭包变量：本文件同时跑在主窗与演讲者窗两个 document 里，
+     各自的 helpEl / cardEl 互不可见，只有查自己的 DOM 才在两处都成立。 */
+  const MODAL_SEL = '.dp-help, .dp-card, .dp-grid';
+  const modalOpen = () => !!document.querySelector(MODAL_SEL);
+
+  /* 弹层开着时，翻页键一律不放行。
+     必须挂在 window 的捕获阶段：翻页键由 deck-stage 内核自己监听，
+     冒泡阶段再拦已经晚了，片子早翻过去了。捕获阶段 window 最先拿到事件，
+     stopPropagation 之后内核与本层其余监听都收不到。
+     放行三类：Esc 用来关闭，Tab 用来在弹层内走焦点，Enter 与空格用来按弹层里的按钮。 */
+  window.addEventListener('keydown', (e) => {
+    if (!modalOpen() || isTypingTarget(e.target)) return;
+    const k = e.key;
+    if (k === 'Escape' || k === 'Tab') return;
+    const inModal = e.target && e.target.closest && e.target.closest(MODAL_SEL);
+    if ((k === 'Enter' || k === ' ') && inModal) return;
+    e.stopPropagation();
+    e.preventDefault();
+  }, true);
+
   /* ── 署名横幅（每窗一次；作者与开源仓见 H 键关于面板） ── */
   try {
     console.log(
@@ -195,10 +217,10 @@
       .pv-banner{flex:none;display:none;align-items:center;gap:14px;padding:9px 18px;background:#4a3200;color:#ffd591;font-size:14px;border-bottom:1px solid rgba(255,255,255,.08)}
       .pv-banner[data-on]{display:flex}
       .pv-banner .pv-btn{border-color:rgba(255,213,145,.5);color:#ffd591}
-      .pv-main{flex:1;min-height:0;display:grid;grid-template-columns:1fr 420px;gap:10px;padding:10px}
-      .pv-cur{position:relative;background:#000;border-radius:8px;overflow:hidden;min-width:0}
+      .pv-main{flex:1;min-height:0;display:grid;grid-template-columns:1fr 380px;gap:12px;padding:12px}
+      .pv-cur{position:relative;flex:1;min-height:0;background:#000;border-radius:8px;overflow:hidden}
       .pv-side{display:flex;flex-direction:column;gap:10px;min-height:0;min-width:0}
-      .pv-next{position:relative;flex:none;aspect-ratio:16/9;background:#000;border-radius:8px;overflow:hidden}
+      .pv-next{position:relative;flex:1;min-height:0;background:#000;border-radius:8px;overflow:hidden}
       .pv-next .cap,.pv-cur .cap{position:absolute;left:10px;top:8px;z-index:5;font-size:12px;color:#fff;background:rgba(0,0,0,.55);padding:2px 10px;border-radius:999px;letter-spacing:.06em}
       .pv-notes{flex:1;min-height:0;display:flex;flex-direction:column;background:#141F36;border:1px solid rgba(255,255,255,.06);border-radius:8px;overflow:hidden}
       .pv-notes .bar{flex:none;display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid rgba(255,255,255,.08);color:rgba(255,255,255,.6);font-size:13px}
@@ -221,7 +243,7 @@
       .pv-grid .cell[data-cur]{outline-color:#7BA0E6}
       .pv-grid .cell .no{position:absolute;left:6px;top:5px;z-index:5;font-size:11px;color:#fff;background:rgba(0,0,0,.6);padding:1px 8px;border-radius:999px}
       .pv-grid .ghint{position:sticky;top:0;z-index:8;margin:-22px -22px 14px;padding:10px 22px;background:rgba(8,14,32,.9);color:rgba(255,255,255,.55);font-size:13px}
-      @media (max-width:1100px){.pv-main{grid-template-columns:1fr 320px}}
+      @media (max-width:1100px){.pv-main{grid-template-columns:1fr 300px}}
       @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none !important;animation:none !important}}
     `;
     document.head.appendChild(css);
@@ -244,17 +266,17 @@
         <button class="pv-btn" id="pv-banner-x">关闭</button>
       </div>
       <div class="pv-main">
-        <div class="pv-cur" id="pv-cur"><span class="cap">当前页</span></div>
-        <div class="pv-side">
-          <div class="pv-next" id="pv-next"><span class="cap">下一页</span></div>
-          <div class="pv-notes">
-            <div class="bar">逐字稿
-              <span class="sp"></span>
-              <button class="pv-btn" id="pv-font-minus">A−</button>
-              <button class="pv-btn" id="pv-font-plus">A＋</button>
-            </div>
-            <div class="txt" id="pv-notes"></div>
+        <div class="pv-notes">
+          <div class="bar">逐字稿
+            <span class="sp"></span>
+            <button class="pv-btn" id="pv-font-minus">A−</button>
+            <button class="pv-btn" id="pv-font-plus">A＋</button>
           </div>
+          <div class="txt" id="pv-notes"></div>
+        </div>
+        <div class="pv-side">
+          <div class="pv-cur" id="pv-cur"><span class="cap">当前页</span></div>
+          <div class="pv-next" id="pv-next"><span class="cap">下一页</span></div>
         </div>
       </div>
       <div class="pv-foot">
@@ -283,8 +305,8 @@
     const curNo = $('#pv-cur-no');
     const swapBtn = $('#pv-swap');
 
-    let notesPx = 22;
-    try { notesPx = parseInt(localStorage.getItem('deck-presenter.notesPx'), 10) || 22; } catch (e) {}
+    let notesPx = 28;
+    try { notesPx = parseInt(localStorage.getItem('deck-presenter.notesPx'), 10) || 28; } catch (e) {}
     const applyNotesPx = () => { notesEl.style.fontSize = notesPx + 'px'; };
     applyNotesPx();
 
@@ -516,7 +538,7 @@
       try { localStorage.setItem('deck-presenter.notesPx', String(notesPx)); } catch (e) {}
     });
     $('#pv-font-plus').addEventListener('click', () => {
-      notesPx = Math.min(44, notesPx + 2); applyNotesPx();
+      notesPx = Math.min(56, notesPx + 2); applyNotesPx();
       try { localStorage.setItem('deck-presenter.notesPx', String(notesPx)); } catch (e) {}
     });
     $('#pv-jump').addEventListener('keydown', (e) => {
@@ -556,6 +578,7 @@
     let wheelAcc = 0, wheelCool = 0;
     window.addEventListener('wheel', (e) => {
       if (e.ctrlKey) return;
+      if (modalOpen()) return; // 弹层开着时滚轮归弹层，不许翻片
       const path = e.composedPath ? e.composedPath() : [];
       for (const n of path) {
         if (n === notesEl || (n.classList && n.classList.contains('txt'))) return; // 逐字稿区滚动优先
@@ -646,7 +669,8 @@
     .dp-bar[data-mode="show"] .browseonly{display:none}
     .dp-bar .showonly{display:none}
     .dp-bar[data-mode="show"] .showonly{display:inline-flex}
-    deck-stage[noscale] ~ .dp-bar,deck-stage[noscale] ~ .dp-toast,deck-stage[noscale] ~ .dp-jumphint,deck-stage[noscale] ~ .dp-bubble{display:none}
+    deck-stage[noscale] ~ .dp-bar,deck-stage[noscale] ~ .dp-toast,deck-stage[noscale] ~ .dp-jumphint,deck-stage[noscale] ~ .dp-bubble,
+    deck-stage[noscale] ~ .dp-read,deck-stage[noscale] ~ .dp-prog,deck-stage[noscale] ~ .dp-grid{display:none}
     :fullscreen .dp-bar{display:flex}
     .dp-black{position:fixed;inset:0;z-index:2147483400;background:#000;cursor:none}
     .dp-end{position:fixed;inset:0;z-index:2147483350;background:#000;display:flex;align-items:center;justify-content:center;
@@ -657,11 +681,90 @@
     @keyframes dpRise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
     @keyframes dpRiseCentered{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
     .dp-help{position:fixed;inset:0;z-index:2147483500;background:rgba(8,14,32,.66);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
-      display:flex;align-items:center;justify-content:center;font-family:${FONT_STACK}}
+      display:flex;align-items:center;justify-content:center;padding:24px;font-family:${FONT_STACK}}
     .dp-help .card,.dp-card .card{position:relative;background:linear-gradient(165deg,#16233F,#0F1B33);color:#EAF0F8;
       border:1px solid rgba(123,160,230,.22);border-radius:16px;
       padding:26px 34px;min-width:420px;max-width:560px;box-shadow:0 24px 64px rgba(0,0,0,.55);
       animation:dpCardIn 200ms cubic-bezier(.2,.7,.3,1) both}
+    /* 帮助层往宽里排，不往高里排。
+       快捷键原先是一张单列长表，十三行叠起来约 780px，13 寸笔记本开着书签栏就得滚。
+       改成翻页/放映/其他三栏并列，最高一栏只有六行，整卡稳定在 460px 上下，任何视口都不用滚。
+       max-height 与 overflow 仍然保留，只作为极端矮窗（如横屏手机）的兜底，正常永不触发。 */
+    .dp-help .card{width:min(1040px,100%);max-width:none;max-height:100%;overflow-y:auto;overscroll-behavior:contain}
+    .dp-help .keys{display:grid;grid-template-columns:repeat(3,1fr);gap:4px 30px;align-items:start}
+    .dp-help .kgrp h4{margin:0 0 10px;font-size:11px;font-weight:700;letter-spacing:.2em;
+      color:rgba(123,160,230,.75);text-transform:uppercase}
+    .dp-help .krow{display:flex;align-items:baseline;gap:12px;padding:5px 0}
+    .dp-help .krow dt{flex:none;font-family:ui-monospace,Menlo,monospace;font-size:12px;
+      color:#EAF0F8;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.13);
+      border-radius:5px;padding:2px 7px;white-space:nowrap}
+    .dp-help .krow dd{margin:0;font-size:12.5px;line-height:1.5;color:rgba(255,255,255,.62)}
+    .dp-help .foot-row{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;
+      margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,.12)}
+    /* about 原本自带上边框与上间距，现在分隔线由 foot-row 提供，去掉重复 */
+    .dp-help .foot-row .about{margin-top:0;padding-top:0;border-top:0}
+    .dp-help .foot-row .btns{flex:none}
+    /* 触屏：控制条按钮放大到 44px 见方，低于这个尺寸拇指点不准（Apple HIG 与 Material 同口径）。
+       控制条本身常驻显示，触屏没有 hover，藏起来就再也找不到了。 */
+    .dp-bar[data-touch]{bottom:14px;gap:4px;padding:6px}
+    .dp-bar[data-touch] button{min-width:44px;min-height:44px}
+    .dp-bar[data-touch] .pg{min-height:44px;display:inline-flex;align-items:center;padding:0 12px;font-size:15px}
+    .dp-bar[data-touch]{opacity:1 !important;transform:translateX(-50%) !important}
+    .dp-bar .touchonly{display:none}
+    .dp-bar[data-touch] .touchonly{display:inline-flex}
+
+    /* ── 手机竖屏阅读态 ────────────────────────────────────────────────
+       16:9 的片子在 9:19 的屏上按宽铺满只占三成高，剩下七成原本是黑边。
+       这七成交给本页逐字稿：上屏只放锚点的片子脱离讲者本就不自足，
+       手机上多数打开发生在讲完之后，补的正是这个缺口。 */
+    /* 底部空出控制条那条的高度。留在容器上而不是留在正文的 padding 上：
+       后者只保护最后一段，滚到中段时文字照样从半透明的控制条底下流过去。
+       空出来的这段由面板自己的底色托着，控制条落在实色上。 */
+    .dp-read{position:fixed;left:0;right:0;bottom:0;z-index:2147482000;display:flex;flex-direction:column;
+      padding-bottom:78px;box-sizing:border-box;
+      background:#0B1220;color:#DCE4F2;font-family:${FONT_STACK};border-top:1px solid rgba(123,160,230,.20)}
+    .dp-read .lab{flex:none;padding:12px 20px 2px;font-size:11px;letter-spacing:.18em;color:rgba(123,160,230,.72)}
+    .dp-read .txt{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+      padding:8px 20px 12px;font-size:16px;line-height:1.95}
+    /* 滚动到底之前给一条渐隐，读者才知道下面还有 */
+    .dp-read::after{content:"";position:absolute;left:0;right:0;bottom:78px;height:28px;pointer-events:none;
+      background:linear-gradient(to bottom,rgba(11,18,32,0),#0B1220)}
+    .dp-read .txt p{margin:0 0 1em}
+    .dp-read .txt p:last-child{margin-bottom:0}
+
+    /* 进度贴在画布下沿而非屏幕底部：读者的视线停在片子上，
+       进度信息落在同一个视觉区域里才会被看见。 */
+    .dp-prog{position:fixed;left:0;height:3px;z-index:2147482100;background:rgba(255,255,255,.13);pointer-events:none}
+    .dp-prog i{display:block;height:100%;background:#4874CB;transition:width 220ms cubic-bezier(.2,.7,.3,1)}
+
+    /* ── 缩略图总览 ──────────────────────────────────────────────────
+       两列而不是三列：NN/g 的结论是缩略图必须大到能认出来，
+       列表里的小图等于没有。 */
+    .dp-grid{position:fixed;inset:0;z-index:2147483460;background:rgba(8,14,32,.94);
+      backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font-family:${FONT_STACK};
+      display:flex;flex-direction:column;animation:dpFade 180ms ease both}
+    .dp-grid .top{flex:none;display:flex;align-items:center;gap:12px;padding:14px 16px 10px;color:#fff}
+    .dp-grid .top h3{margin:0;font-size:15px;font-weight:700;letter-spacing:.06em}
+    .dp-grid .top .x{margin-left:auto;appearance:none;background:rgba(255,255,255,.08);border:0;color:rgba(255,255,255,.72);
+      min-width:44px;min-height:44px;border-radius:999px;font-size:18px;cursor:pointer}
+    .dp-grid .list{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+      display:grid;grid-template-columns:repeat(2,1fr);gap:14px;padding:4px 16px 24px}
+    .dp-grid .cell{appearance:none;background:transparent;border:0;padding:0;cursor:pointer;text-align:left;color:inherit}
+    .dp-grid .shot{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;background:#fff;border-radius:8px;
+      border:2px solid transparent;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+    .dp-grid .cell[data-cur] .shot{border-color:#4874CB}
+    .dp-grid .cap{margin-top:6px;font-size:12px;line-height:1.5;color:rgba(255,255,255,.62);
+      overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+    .dp-grid .cell[data-cur] .cap{color:#fff}
+    .dp-grid .pv-canvas{position:absolute;left:50%;top:50%;width:1920px;height:1080px;transform-origin:center center;background:#fff}
+    @media (min-width:560px){.dp-grid .list{grid-template-columns:repeat(3,1fr)}}
+    @media (max-width:900px){
+      .dp-help .keys{grid-template-columns:repeat(2,1fr)}
+    }
+    @media (max-width:620px){
+      .dp-help .keys{grid-template-columns:1fr}
+      .dp-help .foot-row{flex-direction:column;align-items:stretch}
+    }
     .dp-help h3,.dp-card h3{margin:0 0 16px;font-size:16px;font-weight:700;color:#fff;letter-spacing:.06em}
     .dp-help table{border-collapse:collapse;font-size:13px;line-height:2}
     .dp-help td{padding:0 8px}
@@ -706,7 +809,8 @@
       color:#fff;font-size:20px;letter-spacing:.12em;cursor:pointer;font-family:${FONT_STACK}}
     html.dp-nocursor,html.dp-nocursor *{cursor:none !important}
     @media (prefers-reduced-motion:reduce){.dp-bar,.dp-help .card,.dp-card .card,.dp-toast .t,.dp-bubble,.dp-end{transition:none !important;animation:none !important}}
-    @media print{.dp-bar,.dp-black,.dp-help,.dp-card,.dp-toast,.dp-jumphint,.dp-bubble,.dp-end,.dp-clicklayer{display:none !important}}
+    @media print{.dp-bar,.dp-black,.dp-help,.dp-card,.dp-toast,.dp-jumphint,.dp-bubble,.dp-end,.dp-clicklayer,
+      .dp-read,.dp-prog,.dp-grid{display:none !important}}
   `;
   document.head.appendChild(css);
 
@@ -753,6 +857,7 @@
   /* ── 统一控制条 ── */
   const SVG_L = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>';
   const SVG_R = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+  const SVG_GRID = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>';
   const bar = document.createElement('div');
   bar.className = 'dp-bar export-hidden';
   bar.setAttribute('data-omelette-chrome', '');
@@ -770,6 +875,7 @@
     <button class="showonly" data-act="black" title="黑屏 / 恢复（B）">黑屏<span class="kbd">B</span></button>
     <button class="showonly" data-act="fstoggle" title="切换到全屏放映（F）"><span class="fslab">全屏</span><span class="kbd">F</span></button>
     <button class="showonly" data-act="exit" title="退出放映（Esc）">退出放映<span class="kbd">Esc</span></button>
+    <button class="touchonly" data-act="grid" title="缩略图总览" aria-label="缩略图总览">${SVG_GRID}</button>
     <span class="divider"></span>
     <button data-act="help" title="快捷键与帮助（H）">?</button>
   `;
@@ -1234,41 +1340,58 @@
   }
 
   /* ── 帮助 ── */
+  let helpPrevFocus = null;
   function toggleHelp() {
-    if (helpEl) { helpEl.remove(); helpEl = null; return; }
+    if (helpEl) {
+      helpEl.remove(); helpEl = null;
+      // 焦点还给打开前那个元素，否则关闭后焦点落到 body，键盘操作会断一拍
+      try { if (helpPrevFocus && helpPrevFocus.focus) helpPrevFocus.focus({ preventScroll: true }); } catch (err) {}
+      helpPrevFocus = null;
+      return;
+    }
     const wmOk = typeof window.getScreenDetails === 'function';
     helpEl = document.createElement('div');
     helpEl.className = 'dp-help export-hidden';
     helpEl.setAttribute('data-omelette-chrome', '');
     helpEl.innerHTML = `
-      <div class="card" role="dialog" aria-label="快捷键与关于">
-        <button class="x" data-close title="关闭（Esc）">×</button>
+      <div class="card" role="dialog" aria-modal="true" aria-label="快捷键与关于">
+        <button class="x" data-close title="关闭（Esc）" aria-label="关闭">×</button>
         <h3>快捷键与关于</h3>
-        <table>
-          <tr class="grp"><td colspan="2">翻页</td></tr>
-          <tr><td>→ ↓ 空格 Enter PgDn</td><td>下一页</td></tr>
-          <tr><td>← ↑ Backspace PgUp</td><td>上一页</td></tr>
-          <tr><td>滚轮</td><td>上下翻页</td></tr>
-          <tr><td>数字 + Enter</td><td>跳到任意页（如 3、7、Enter 跳第 37 页）</td></tr>
-          <tr><td>Home / End / R</td><td>首页 / 末页 / 回首页</td></tr>
-          <tr class="grp"><td colspan="2">放映</td></tr>
-          <tr><td>F</td><td>浏览时：从当前页全屏放映；放映中：全屏⇄窗口切换</td></tr>
-          <tr><td>Shift+F</td><td>从第 1 页放映</td></tr>
-          <tr><td>P</td><td>演讲者放映（双屏自动投片；单屏可选窗口放映，适合远程会议）</td></tr>
-          <tr><td>X</td><td>交换两个屏幕的内容</td></tr>
-          <tr><td>B</td><td>黑屏 / 恢复</td></tr>
-          <tr><td>Esc</td><td>退出放映（双屏放映中：第一次退全屏，再按一次退出）</td></tr>
-          <tr class="grp"><td colspan="2">其他</td></tr>
-          <tr><td>H 或 ?</td><td>帮助与关于</td></tr>
-          <tr><td>⌘P / Ctrl+P</td><td>导出 PDF（每页一片、1920×1080、无边距）</td></tr>
-        </table>
-        <div class="btns" style="margin-top:14px;justify-content:flex-start"><button data-hact="print">导出 PDF（浏览器打印）</button></div>
-        <div class="tip">远程会议：按 P 选“演讲者视图＋窗口放映”，在会议软件中共享放映窗口，讲稿留在本机。首次使用“演讲者放映”会请求“窗口管理”权限，建议正式汇报前先试一次完成授权。若权限被拒：地址栏左侧 ⓘ → 网站设置 → 窗口管理 → 允许，然后刷新。${wmOk ? '' : '当前浏览器不支持自动双屏（建议 Chrome/Edge）：按 P 打开演讲者视图后手动拖窗。'}F5 为浏览器刷新，放映请用 F / P。</div>
-        <div class="about">
-          <div class="a-name">咨询汇报 HTML 幻灯片播放器 <span class="a-ver">v${VERSION}</span></div>
-          <div class="a-line">设计与实现 曾子轩 · <a href="https://zixuan.net" target="_blank" rel="noopener">zixuan.net</a></div>
-          <div class="a-line">开源技能包 <a href="https://github.com/sinnohzeng/consulting-deck-skill" target="_blank" rel="noopener">github.com/sinnohzeng/consulting-deck-skill</a></div>
-          <div class="a-line dim">播放内核 deck-stage（上游组件）· 放映增强 deck-presenter</div>
+        <div class="keys">
+          <div class="kgrp">
+            <h4>翻页</h4>
+            <dl class="krow"><dt>→ ↓ 空格 Enter</dt><dd>下一页</dd></dl>
+            <dl class="krow"><dt>← ↑ Backspace</dt><dd>上一页</dd></dl>
+            <dl class="krow"><dt>滚轮</dt><dd>上下翻页</dd></dl>
+            <dl class="krow"><dt>数字 + Enter</dt><dd>跳到指定页</dd></dl>
+            <dl class="krow"><dt>Home / End</dt><dd>首页 / 末页</dd></dl>
+            <dl class="krow"><dt>R</dt><dd>回首页</dd></dl>
+          </div>
+          <div class="kgrp">
+            <h4>放映</h4>
+            <dl class="krow"><dt>F</dt><dd>全屏放映，放映中切窗口</dd></dl>
+            <dl class="krow"><dt>Shift + F</dt><dd>从第 1 页放映</dd></dl>
+            <dl class="krow"><dt>P</dt><dd>演讲者放映，双屏自动投片</dd></dl>
+            <dl class="krow"><dt>X</dt><dd>交换两个屏幕</dd></dl>
+            <dl class="krow"><dt>B</dt><dd>黑屏 / 恢复</dd></dl>
+            <dl class="krow"><dt>Esc</dt><dd>退出放映</dd></dl>
+          </div>
+          <div class="kgrp">
+            <h4>其他</h4>
+            <dl class="krow"><dt>H 或 ?</dt><dd>本帮助</dd></dl>
+            <dl class="krow"><dt>⌘P / Ctrl+P</dt><dd>导出 PDF，每页一片</dd></dl>
+            <dl class="krow"><dt>F5</dt><dd>浏览器刷新，放映请用 F 或 P</dd></dl>
+          </div>
+        </div>
+        <div class="tip">远程会议：按 P 选演讲者视图加窗口放映，在会议软件里共享那个放映窗，讲稿留在本机。首次按 P 会请求窗口管理权限，正式汇报前先试一次。若被拒，地址栏左侧 ⓘ → 网站设置 → 窗口管理 → 允许，然后刷新。${wmOk ? '' : '当前浏览器不支持自动双屏，建议换 Chrome 或 Edge，也可以按 P 后手动拖窗。'}</div>
+        <div class="foot-row">
+          <div class="about">
+            <div class="a-name">咨询汇报 HTML 幻灯片播放器 <span class="a-ver">v${VERSION}</span></div>
+            <div class="a-line">设计与实现 曾子轩 · <a href="https://zixuan.net" target="_blank" rel="noopener">zixuan.net</a></div>
+            <div class="a-line">开源技能包 <a href="https://github.com/sinnohzeng/consulting-deck-skill" target="_blank" rel="noopener">github.com/sinnohzeng/consulting-deck-skill</a></div>
+            <div class="a-line dim">播放内核 deck-stage（上游组件）· 放映增强 deck-presenter</div>
+          </div>
+          <div class="btns"><button data-hact="print">导出 PDF</button></div>
         </div>
       </div>
     `;
@@ -1283,7 +1406,19 @@
       // 背景或 × 才关闭；卡片主体可自由点选复制，不误关
       if (e.target === helpEl || c('[data-close]')) toggleHelp();
     });
+    // Tab 在弹层内循环，不让焦点跑到底下的幻灯片上去
+    helpEl.addEventListener('keydown', (e) => {
+      if (e.key !== 'Tab') return;
+      const f = helpEl.querySelectorAll('button, a[href]');
+      if (!f.length) return;
+      const first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { last.focus(); e.preventDefault(); }
+      else if (!e.shiftKey && document.activeElement === last) { first.focus(); e.preventDefault(); }
+    });
     document.body.appendChild(helpEl);
+    helpPrevFocus = document.activeElement;
+    const closeBtn = helpEl.querySelector('[data-close]');
+    if (closeBtn) closeBtn.focus({ preventScroll: true });
   }
 
   /* ── 同步：deck-stage 每次换页广播给演讲者窗口 ── */
@@ -1356,6 +1491,7 @@
     else if (a === 'fstoggle') toggleFullscreen();
     else if (a === 'exit') exitShowCompletely('');
     else if (a === 'help') toggleHelp();
+    else if (a === 'grid') toggleGrid();
     else if (a === 'page') openPgInput();
   });
 
@@ -1435,6 +1571,7 @@
     const k = e.key;
     if (blackCover && (k !== 'b' && k !== 'B' && k !== 'Escape')) { setBlackout(false); }
     if (k === 'Escape') {
+      if (gridEl) { closeGrid(); e.preventDefault(); return; }
       if (helpEl) { toggleHelp(); e.preventDefault(); return; }
       if (cardEl) { closeCard(); e.preventDefault(); return; }
       if (presenting() && !isFs()) { e.preventDefault(); exitShowCompletely(''); return; } // 窗口放映：Esc=退出（含黑屏中）
@@ -1465,6 +1602,7 @@
   let wheelAcc = 0, wheelCool = 0;
   window.addEventListener('wheel', (e) => {
     if (e.ctrlKey) return; // 捏合缩放
+    if (modalOpen()) return; // 弹层开着时滚轮归弹层，不许翻片
     const path = e.composedPath ? e.composedPath() : [];
     for (const n of path) {
       if (n && n.classList && (n.classList.contains('rail') || n.classList.contains('ctxmenu'))) return;
@@ -1506,10 +1644,228 @@
   requestAnimationFrame(() => { updateBar(); positionBar(); });
 
   /* 首次打开引导：控制条亮 4 秒 + 快捷键气泡（localStorage 记一次） */
+  /* 触屏设备：放映、演讲者放映、黑屏这些是上台用的，手机上只有翻阅需求，按钮全收起来，
+     控制条只留上一页、页码、下一页、帮助。判据用指针粗细，不用屏幕宽度，
+     因为把桌面窗口拖窄的人仍然可能要放映。 */
+  const isTouchOnly = typeof window.matchMedia === 'function' &&
+    window.matchMedia('(pointer: coarse)').matches && !window.matchMedia('(pointer: fine)').matches;
+  if (isTouchOnly) {
+    bar.setAttribute('data-touch', '');
+    ['home', 'show', 'speaker', 'black', 'fstoggle', 'exit'].forEach((a) => {
+      const b = bar.querySelector(`[data-act="${a}"]`);
+      if (b) b.remove();
+    });
+    // 缩略图栏内核按 ≤640px 隐藏，iPad 竖屏是 834 点会漏出来。
+    // 判据统一换成指针粗细，与上面收起上台按钮同口径。
+    stage.setAttribute('no-rail', '');
+  }
+
+  /* ════════════════════════════════════════════════════════════════
+   * 手机端查看形态（规约 specs/mobile-viewing/spec.md）
+   *
+   * 竖屏＝阅读态：片子贴顶按宽铺满，下方补本页逐字稿。
+   * 横屏＝观看态：片子铺满，逐字稿收起。
+   * 两态之间靠视口比例自动切换，不设按钮：requestFullscreen 在 iPhone
+   * 上没有实现，ScreenOrientation.lock 在 Safari 全系不支持，凡是要向
+   * 平台申请才生效的能力都不能放在主路径上。
+   * ════════════════════════════════════════════════════════════════ */
+  const mSections = Array.from(stage.children).filter((el) =>
+    !/^(TEMPLATE|SCRIPT|STYLE)$/.test(el.tagName));
+  const mNotes = readNotes(mSections);
+  const hasAnyNote = mNotes.some((n) => String(n).trim());
+
+  let readEl = null, readTxt = null, readLab = null, progEl = null, progBar = null, gridEl = null;
+  let fitBox = null;   // 最近一次 deckfit 广播的画布几何
+
+  const isPortrait = () => window.innerHeight > window.innerWidth;
+  const noteOf = (i) => String(mNotes[i] || '').trim();
+  /* 阅读态成立的三个条件缺一不可：触屏、竖持、本页确实有话可讲。
+     最后一条是逐页判定的，没有逐字稿的页不能留一块空面板。 */
+  const readingNow = () => isTouchOnly && hasAnyNote && isPortrait() &&
+    !presenting() && !!noteOf(stage.index);
+
+  function ensureRead() {
+    if (readEl) return;
+    readEl = document.createElement('div');
+    readEl.className = 'dp-read export-hidden';
+    readEl.setAttribute('data-omelette-chrome', '');
+    readEl.innerHTML = '<div class="lab"></div><div class="txt"></div>';
+    readLab = readEl.querySelector('.lab');
+    readTxt = readEl.querySelector('.txt');
+    document.body.appendChild(readEl);
+  }
+
+  function ensureProg() {
+    if (progEl) return;
+    progEl = document.createElement('div');
+    progEl.className = 'dp-prog export-hidden';
+    progEl.setAttribute('data-omelette-chrome', '');
+    progEl.innerHTML = '<i></i>';
+    progBar = progEl.querySelector('i');
+    document.body.appendChild(progEl);
+  }
+
+  function fillRead() {
+    if (!readEl) return;
+    const i = stage.index;
+    readLab.textContent = slideLabel(mSections[i], i);
+    readTxt.textContent = '';
+    noteOf(i).split(/\n{2,}/).forEach((seg) => {
+      const t = seg.trim();
+      if (!t) return;
+      const p = document.createElement('p');
+      p.textContent = t;
+      readTxt.appendChild(p);
+    });
+    readTxt.scrollTop = 0;
+  }
+
+  /* 唯一的形态入口。resize、orientationchange、翻页、deckfit 全部汇到这里，
+     避免几路各自改一半 DOM 造成中间态。 */
+  /* setAttribute 即使值没变也会触发 attributeChangedCallback，内核在那里重跑
+     _fit()，_fit() 又派发 deckfit 把这里叫醒，于是自己咬自己的尾巴把栈爆掉。
+     所以属性只在状态真的翻转时才动。 */
+  function setStageFlag(name, on) {
+    if (on === stage.hasAttribute(name)) return;
+    on ? stage.setAttribute(name, '') : stage.removeAttribute(name);
+  }
+
+  function applyMobileLayout() {
+    if (!isTouchOnly) return;
+    const reading = readingNow();
+    if (reading) {
+      setStageFlag('dock-top', true);
+      ensureRead();
+      fillRead();
+      readEl.style.display = '';
+      readEl.style.top = (fitBox ? Math.round(fitBox.top + fitBox.height) : 0) + 'px';
+    } else {
+      setStageFlag('dock-top', false);
+      if (readEl) readEl.style.display = 'none';
+    }
+    ensureProg();
+    const total = stage.length || mSections.length || 1;
+    progBar.style.width = ((stage.index + 1) / total * 100) + '%';
+    if (fitBox && fitBox.width > 0) {
+      progEl.style.left = Math.round(fitBox.left) + 'px';
+      progEl.style.width = Math.round(fitBox.width) + 'px';
+      progEl.style.top = Math.round(fitBox.top + fitBox.height - 3) + 'px';
+      progEl.style.display = '';
+    } else {
+      progEl.style.display = 'none';
+    }
+  }
+
+  if (isTouchOnly) {
+    // 内核解析完就会 fit 一次，那时本文件还没执行，第一发 deckfit 是收不到的。
+    // 所以先向内核取一次最近几何做种，否则首屏没有进度条也定不了面板位置。
+    fitBox = stage.fitBox;
+    stage.addEventListener('deckfit', (e) => { fitBox = e.detail; applyMobileLayout(); });
+    stage.addEventListener('slidechange', applyMobileLayout);
+    window.addEventListener('resize', applyMobileLayout);
+    // iOS 转屏后 innerWidth/innerHeight 有一帧仍是旧值，等一拍再算。
+    window.addEventListener('orientationchange', () => setTimeout(applyMobileLayout, 120));
+    applyMobileLayout();
+  }
+
+  /* ── 滑动翻页 ──────────────────────────────────────────────────
+     滑动是手机上的第一直觉，也是控制条按钮的替代品。判定要同时满足
+     位移够长与方向够横，否则读逐字稿时的斜向滚动会被误判成翻页。 */
+  if (isTouchOnly) {
+    const SWIPE_MIN = 48, SWIPE_RATIO = 1.5;
+    let sx = 0, sy = 0, tracking = false;
+    window.addEventListener('touchstart', (e) => {
+      tracking = false;
+      if (e.touches.length !== 1) return;
+      if (modalOpen() || gridEl) return;
+      const t = e.target;
+      // 逐字稿面板与总览里归纵向滚动，手势不参与翻页。
+      if (t && t.closest && t.closest('.dp-read, .dp-grid, .dp-bar')) return;
+      sx = e.touches[0].clientX; sy = e.touches[0].clientY;
+      tracking = true;
+    }, { passive: true });
+    window.addEventListener('touchend', (e) => {
+      if (!tracking) return;
+      tracking = false;
+      const t = e.changedTouches && e.changedTouches[0];
+      if (!t) return;
+      const dx = t.clientX - sx, dy = t.clientY - sy;
+      if (Math.abs(dx) < SWIPE_MIN || Math.abs(dx) < Math.abs(dy) * SWIPE_RATIO) return;
+      const fwd = dx < 0;
+      const atEdge = fwd ? stage.index === stage.length - 1 : stage.index === 0;
+      if (atEdge) { bounce(fwd); return; }
+      fwd ? stage.next() : stage.prev();
+    }, { passive: true });
+  }
+
+  /* 到边不静默：给画布一次很短的位移，读者立刻知道是到头了而不是没滑动。 */
+  let bounceTimer = null;
+  function bounce(fwd) {
+    const el = stage.shadowRoot && stage.shadowRoot.querySelector('.stage');
+    if (!el) return;
+    clearTimeout(bounceTimer);
+    el.style.transition = 'transform 140ms ease-out';
+    el.style.transform = `translateX(${fwd ? -14 : 14}px)`;
+    bounceTimer = setTimeout(() => {
+      el.style.transform = 'translateX(0)';
+      bounceTimer = setTimeout(() => { el.style.transition = ''; el.style.transform = ''; }, 160);
+    }, 140);
+  }
+
+  /* ── 缩略图总览 ────────────────────────────────────────────────
+     手机上没有缩略图栏，页码输入又要求读者预先知道「第 17 页是什么」。
+     总览把这件事翻过来：先看见，再跳。 */
+  function toggleGrid() { gridEl ? closeGrid() : openGrid(); }
+
+  function closeGrid() {
+    if (!gridEl) return;
+    gridEl.remove();
+    gridEl = null;
+  }
+
+  function openGrid() {
+    if (gridEl) return;
+    if (helpEl) toggleHelp();
+    gridEl = document.createElement('div');
+    gridEl.className = 'dp-grid export-hidden';
+    gridEl.setAttribute('data-omelette-chrome', '');
+    gridEl.setAttribute('role', 'dialog');
+    gridEl.setAttribute('aria-modal', 'true');
+    gridEl.innerHTML = '<div class="top"><h3>全部 ' + mSections.length +
+      ' 页</h3><button class="x" aria-label="关闭总览">×</button></div><div class="list"></div>';
+    const list = gridEl.querySelector('.list');
+    mSections.forEach((sec, i) => {
+      const cell = document.createElement('button');
+      cell.className = 'cell';
+      if (i === stage.index) cell.setAttribute('data-cur', '');
+      const shot = document.createElement('div');
+      shot.className = 'shot';
+      const cap = document.createElement('div');
+      cap.className = 'cap';
+      cap.textContent = slideLabel(sec, i);
+      cell.appendChild(shot);
+      cell.appendChild(cap);
+      cell.addEventListener('click', () => { stage.goTo(i); closeGrid(); });
+      list.appendChild(cell);
+    });
+    gridEl.querySelector('.x').addEventListener('click', closeGrid);
+    gridEl.addEventListener('click', (e) => { if (e.target === gridEl) closeGrid(); });
+    document.body.appendChild(gridEl);
+    // 克隆渲染放到挂载之后：fitPreview 要量 .shot 的实际尺寸，
+    // 挂载前量到的是 0，缩略图会全部塌成一个点。
+    Array.from(list.children).forEach((cell, i) => {
+      renderPreview(cell.querySelector('.shot'), mSections[i]);
+    });
+    const cur = list.children[stage.index];
+    if (cur && cur.scrollIntoView) cur.scrollIntoView({ block: 'center' });
+    gridEl.querySelector('.x').focus();
+  }
+
   (function firstRunIntro() {
     let seen = null;
     try { seen = localStorage.getItem('deck-presenter.introShown'); } catch (e) {}
     if (seen) return;
+    if (isTouchOnly) return; // 触屏没有快捷键，别提示按 H
     try { localStorage.setItem('deck-presenter.introShown', '1'); } catch (e) {}
     barPin++;
     bar.setAttribute('data-visible', '');

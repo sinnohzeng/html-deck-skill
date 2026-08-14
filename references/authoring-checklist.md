@@ -5,6 +5,10 @@
 ## P0 · 硬闸门
 
 - [ ] `node scripts/verify-presenter.mjs <deck>`：放映增强层全部断言全绿
+- [ ] `node scripts/verify-mobile.mjs <deck>`：手机端形态全部断言全绿
+      （deck 讲完要作为链接流转时必跑；内核整文件覆盖后同样必重跑，
+      本地补丁没打上会静默退化成竖屏满屏黑边）
+- [ ] `#speaker-notes` 逐字稿写全：手机竖屏读到的就是它，缺稿的页在手机上等于只剩几个词
       （上游 deck-stage.js 整文件覆盖升级后必重跑）
 - [ ] `node scripts/measure-geometry.mjs <deck>`：每页 footGap/headGap > 15，无负数
 - [ ] `node scripts/capture-deck.mjs <deck> audit`：无 `so>2`；逐张 PNG 肉眼过

@@ -168,6 +168,11 @@
       align-items: center;
       justify-content: center;
     }
+    /* Pin the canvas to the top instead of centring it, so whoever set the
+       attribute can use the space underneath. The host decides when — a
+       portrait phone with a reading panel below, say. The component itself
+       has no opinion about what goes there. */
+    :host([dock-top]) .stage { align-items: flex-start; }
 
     .canvas {
       position: relative;
@@ -584,7 +589,7 @@
   `;
 
   class DeckStage extends HTMLElement {
-    static get observedAttributes() { return ['width', 'height', 'noscale', 'no-rail']; }
+    static get observedAttributes() { return ['width', 'height', 'noscale', 'no-rail', 'dock-top']; }
 
     constructor() {
       super();
@@ -1305,8 +1310,41 @@
       const vw = window.innerWidth - rw;
       const vh = window.innerHeight;
       const s = Math.min(vw / this.designWidth, vh / this.designHeight);
+      // The canvas keeps its authored 1920×1080 layout box and only shrinks
+      // visually, so flex alignment moves the layout box while the painted
+      // box stays centred on it. Docking to the top therefore has to move
+      // the scaling origin as well, or the slide lands 540×(1−s) px low.
+      this._canvas.style.transformOrigin = this.hasAttribute('dock-top') ? 'center top' : '';
       this._canvas.style.transform = `scale(${s})`;
+      this._publishFit(s, rw, vw, vh);
     }
+
+    /**
+     * Broadcast the rendered canvas geometry after every fit.
+     *
+     * Anything that wants to sit flush against the slide — a reading panel
+     * under it, a progress bar on its bottom edge — needs the box the canvas
+     * actually occupies, and that is only knowable here. Without this event
+     * the only way to get it is to reach into the shadow root for `.canvas`,
+     * which is exactly the coupling that breaks the day the root goes closed.
+     */
+    _publishFit(scale, railW, vw, vh) {
+      const w = this.designWidth * scale;
+      const h = this.designHeight * scale;
+      // The canvas is centred in the [railW, innerWidth] band by flexbox;
+      // with dock-top it is pinned to the band's top instead.
+      const top = this.hasAttribute('dock-top') ? 0 : (vh - h) / 2;
+      const detail = { scale, width: w, height: h, left: railW + (vw - w) / 2, top };
+      this._lastFit = detail;
+      this.dispatchEvent(new CustomEvent('deckfit', { detail, bubbles: true, composed: true }));
+    }
+
+    /**
+     * The most recent geometry, for listeners that attached after the first
+     * fit. The kernel upgrades and fits as soon as it is parsed, so any
+     * enhancement layer loaded after it misses that first event entirely.
+     */
+    get fitBox() { return this._lastFit || null; }
 
     _onResize() {
       this._fit();

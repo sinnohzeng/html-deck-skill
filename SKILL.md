@@ -73,6 +73,8 @@ node -e "const h=require('fs').readFileSync('<deck>.html','utf8');const n=JSON.p
 cd <SKILL_ROOT>/scripts && npm i && npx playwright install chromium   # 首次
 node measure-geometry.mjs <deck 绝对路径>    # 每页 footGap/headGap 必须 > 15，负数=重叠
 node capture-deck.mjs <deck 绝对路径> audit  # 逐页 PNG + so/bo 溢出报告，逐张看图
+node verify-presenter.mjs <deck 绝对路径>    # 放映增强层断言，须全绿
+node verify-mobile.mjs <deck 绝对路径>       # 手机端形态断言，须全绿
 ```
 
 **注意**：表格页 so=0 且 bo=0 **不代表**没有重叠（居中 body 撑表是探测盲区），
@@ -104,12 +106,17 @@ PDF 交付：`node scripts/export-pdf.mjs <deck.html>` 一次产出纯幻灯片 
 4. **页脚规范**：浅色内容页 = 左 logo + 右 `.nav` 章节进度条（当前章 `.cur`）；
    `.rp` 报告徽标只在多报告合并 deck 使用。
 5. **深浅节奏**：封面/分节/结束页用深色母版，正文用浅色；连续深色不超过 2 页。
-6. **上游文件勿改**：`assets/deck-stage.js` 是上游播放器组件，
-   升级 = 整文件覆盖；本地扩展只进 `assets/deck-presenter.js`。
-   上游整文件覆盖后**必须重跑** `node scripts/verify-presenter.mjs template.html`
-   （统一控制条依赖上游 open shadowRoot 与 `.overlay` 类名抑制英文导航条，
-   窗口放映依赖上游 `__omelette_presenting` 消息语义，
-   断言不过说明上游结构变了，需调整 presenter 层的对接点）。
+6. **上游文件按补丁维护**：`assets/deck-stage.js` 是上游播放器组件，
+   升级 = 整文件覆盖，**覆盖之后必须把本地补丁重新打上**，清单与逐条代码见
+   `references/deck-stage-local-patches.md`。本地扩展默认只进
+   `assets/deck-presenter.js`；只有内核独有的信息（画布几何）或内核独有的排布能力
+   才允许进内核，且必须做成通用开关，不带产品判断。
+   上游整文件覆盖后**必须重跑**两个核验脚本：
+   `node scripts/verify-presenter.mjs template.html`（统一控制条依赖上游 open shadowRoot
+   与 `.overlay` 类名抑制英文导航条，窗口放映依赖上游 `__omelette_presenting` 消息语义）
+   与 `node scripts/verify-mobile.mjs template.html`（手机端阅读态依赖本地补丁的
+   `dock-top` / `deckfit` / `fitBox`，补丁没打上会静默退化成竖屏满屏黑边）。
+   断言不过说明上游结构变了，需调整对接点。
 7. **单一真源**：一个 deck 的样式只在其内联 `<style>`；逐字稿只在 `#speaker-notes`。
 
 ## 资源导览
@@ -119,18 +126,20 @@ consulting-deck-skill/
 ├── SKILL.md                        ← 本文件（工作流 + 硬规则）
 ├── template.html                   ← 种子模板：设计系统唯一真源 + 12 页母版示例
 ├── assets/
-│   ├── deck-stage.js               ← 播放器（上游组件，勿改）
-│   ├── deck-presenter.js           ← 放映增强层（全屏/窗口放映/滚轮/演讲者视图/黑屏）
+│   ├── deck-stage.js               ← 播放内核（上游组件 + 三处本地补丁，见 references）
+│   ├── deck-presenter.js           ← 放映增强层（全屏/窗口放映/滚轮/演讲者视图/黑屏/手机端形态）
 │   ├── logos/                      ← 占位标识 SVG（深/浅底各一，替换为贵司 LOGO）
 │   └── backgrounds/                ← 波浪装饰 PNG（深色母版底为纯 CSS 渐变）
 ├── references/
 │   ├── layouts.md                  ← 页面母版登记表（可粘贴骨架）
 │   ├── components.md               ← 组件类手册 + 易错点
 │   ├── design-tokens.md            ← token/字号阶/密度决策树/标点规范
-│   ├── presenting.md               ← 放映/双屏演讲者视图/PDF 导出
+│   ├── presenting.md               ← 放映/双屏演讲者视图/手机端形态/PDF 导出
+│   ├── deck-stage-local-patches.md ← 内核三处本地补丁，上游整文件覆盖后照此重打
 │   └── authoring-checklist.md      ← 交付自检清单
 └── scripts/
     ├── verify-presenter.mjs        ← 放映增强层无头断言（控制条/协议/窗口放映/降级链，硬闸门须全绿）
+    ├── verify-mobile.mjs           ← 手机端形态无头断言（阅读态/滑动/进度/总览，硬闸门须全绿）
     ├── measure-geometry.mjs        ← 几何核验（footGap/headGap，硬闸门）
     ├── capture-deck.mjs            ← 逐页截图 + 溢出报告
     ├── export-pdf.mjs              ← PDF 导出（纯片 16:9 + A4 二合一 handout，--rp 分报告，自校验）
