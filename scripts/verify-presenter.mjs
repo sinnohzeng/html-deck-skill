@@ -136,7 +136,7 @@ ok(await page.evaluate(() => {
   const h = document.querySelector('.dp-help');
   return !!h && h.textContent.includes('曾子轩') &&
     !!h.querySelector('a[href="https://zixuan.net"][target="_blank"]') &&
-    !!h.querySelector('a[href="https://github.com/sinnohzeng/consulting-deck-skill"][target="_blank"]');
+    !!h.querySelector('a[href="https://github.com/sinnohzeng/html-deck-skill"][target="_blank"]');
 }), '关于面板含作者主页与开源仓链接（新标签打开）');
 ok(await page.evaluate(() =>
   document.querySelector('.dp-help').textContent.includes('v' + window.__deckpPresenter.version)),

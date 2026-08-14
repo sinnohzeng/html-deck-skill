@@ -27,7 +27,7 @@
 ## 快速开始（人类）
 
 ```bash
-git clone https://github.com/sinnohzeng/consulting-deck-skill.git
+git clone https://github.com/sinnohzeng/html-deck-skill.git
 open consulting-deck-skill/template.html   # 直接看 12 页母版演示（速览设计系统）
 ```
 

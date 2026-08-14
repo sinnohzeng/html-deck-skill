@@ -124,7 +124,7 @@
     console.log(
       '%c咨询汇报 HTML 幻灯片%c deck-presenter v' + VERSION +
       '\n设计与实现 曾子轩 · https://zixuan.net' +
-      '\n开源技能包 https://github.com/sinnohzeng/consulting-deck-skill' +
+      '\n开源技能包 https://github.com/sinnohzeng/html-deck-skill' +
       (IS_PRESENTER ? '' : '\n按 H 查看快捷键与关于'), // 演讲者窗未绑 H，不给误导指引
       'color:#7BA0E6;font-weight:700;font-size:13px', 'color:inherit'
     );
@@ -1388,7 +1388,7 @@
           <div class="about">
             <div class="a-name">咨询汇报 HTML 幻灯片播放器 <span class="a-ver">v${VERSION}</span></div>
             <div class="a-line">设计与实现 曾子轩 · <a href="https://zixuan.net" target="_blank" rel="noopener">zixuan.net</a></div>
-            <div class="a-line">开源技能包 <a href="https://github.com/sinnohzeng/consulting-deck-skill" target="_blank" rel="noopener">github.com/sinnohzeng/consulting-deck-skill</a></div>
+            <div class="a-line">开源技能包 <a href="https://github.com/sinnohzeng/html-deck-skill" target="_blank" rel="noopener">github.com/sinnohzeng/html-deck-skill</a></div>
             <div class="a-line dim">播放内核 deck-stage（上游组件）· 放映增强 deck-presenter</div>
           </div>
           <div class="btns"><button data-hact="print">导出 PDF</button></div>
