@@ -1,9 +1,9 @@
 ---
-name: building-consulting-decks
-description: Builds single-file HTML slide decks in a consulting-grade navy/blue design system — copies template.html, assembles pages from registered masters, keeps design tokens locked, syncs speaker notes, and verifies page geometry before delivery. Use when asked to 制作/修改咨询风格的 HTML 幻灯片、汇报 deck、成果汇报片子、领导汇报演示. Triggers on "HTML 幻灯片"、"汇报片子"、"咨询汇报 deck"、"做一版汇报 PPT（HTML）"、"consulting deck".
+name: building-html-decks
+description: Builds single-file HTML slide decks in a consulting-grade navy/blue design system — copies template.html, assembles pages from registered masters, keeps design tokens locked, syncs speaker notes, and verifies page geometry before delivery. Use when asked to 制作/修改咨询风格的 HTML 幻灯片、汇报 deck、成果汇报片子、领导汇报演示. Triggers on "HTML 幻灯片"、"汇报片子"、"咨询汇报 deck"、"做一版汇报 PPT（HTML）"、"HTML deck"、"consulting deck".
 ---
 
-# 咨询汇报 HTML 幻灯片（Building Consulting Decks）
+# 咨询汇报 HTML 幻灯片（Building HTML Decks）
 
 生成**单文件 HTML** 的 16:9 横向汇报 deck：深蓝（navy）+ 主蓝（teal）咨询风设计系统、
 `deck-stage.js` 播放器（键盘/触屏翻页 + 缩略图栏 + 打印导出）、
@@ -122,7 +122,7 @@ PDF 交付：`node scripts/export-pdf.mjs <deck.html>` 一次产出纯幻灯片 
 ## 资源导览
 
 ```
-consulting-deck-skill/
+html-deck-skill/
 ├── SKILL.md                        ← 本文件（工作流 + 硬规则）
 ├── template.html                   ← 种子模板：设计系统唯一真源 + 12 页母版示例
 ├── assets/

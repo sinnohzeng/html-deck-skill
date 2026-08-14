@@ -1,5 +1,5 @@
 {
-  "name": "consulting-deck-skill-scripts",
+  "name": "html-deck-skill-scripts",
   "private": true,
   "type": "module",
   "description": "无头核验与 PDF 导出脚本依赖（playwright + Chromium + pdf-lib）。首次：npm i && npx playwright install chromium",

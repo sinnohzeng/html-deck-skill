@@ -35,7 +35,7 @@ import { chromium } from 'playwright';
 /* ── 品牌常量（公开仓移植时唯一需检视的块；交付面品牌一律用公开名） ── */
 const BRAND = {
   author: '曾子轩 (Zixuan Zeng)',
-  creator: 'consulting-deck-skill · export-pdf.mjs',
+  creator: 'html-deck-skill · export-pdf.mjs',
   emptyNotes: '（本页无逐字稿）',
 };
 

@@ -1,4 +1,4 @@
-# consulting-deck-skill — 咨询汇报 HTML 幻灯片技能包
+# html-deck-skill — 咨询汇报 HTML 幻灯片技能包
 
 一套**咨询级 HTML 汇报幻灯片体系**，打包成可复用的智能体技能（Agent Skill）：
 统一设计系统、页面母版库、播放器与双屏演讲者视图、交付核验脚本。
@@ -28,7 +28,7 @@
 
 ```bash
 git clone https://github.com/sinnohzeng/html-deck-skill.git
-open consulting-deck-skill/template.html   # 直接看 12 页母版演示（速览设计系统）
+open html-deck-skill/template.html   # 直接看 12 页母版演示（速览设计系统）
 ```
 
 做一份新 deck：把 `template.html` 复制改名 + 拷走 `assets/`，按 `references/layouts.md`
@@ -37,7 +37,7 @@ open consulting-deck-skill/template.html   # 直接看 12 页母版演示（速�
 ## 快速开始（AI 智能体）
 
 **Claude Code**：把本仓放入 `~/.claude/skills/`（或项目 `.claude/skills/`）即自动发现；
-或直接说"按 consulting-deck-skill 的规范做一份汇报幻灯片"。
+或直接说“按 html-deck-skill 的规范做一份汇报幻灯片”。
 
 **其他平台（OpenClaw / 飞书 Aily / 腾讯 Workbuddy / 阿里 Qoder Work / 字节 TRAE Work）**：
 把整个仓库（或 zip）交给智能体，并附一句引导词：
@@ -51,7 +51,7 @@ SKILL.md 为平台中立写法（纯文件操作 + bash 命令），不依赖任
 审计截图 `_audit/` 等数十 MB 本地产物）：
 
 ```bash
-git -C consulting-deck-skill archive --format=zip -o ../consulting-deck-skill.zip HEAD
+git -C html-deck-skill archive --format=zip -o ../html-deck-skill.zip HEAD
 ```
 
 ## 换成贵司品牌（三步）
