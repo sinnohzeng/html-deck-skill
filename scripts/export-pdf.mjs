@@ -14,7 +14,7 @@
  *     --keep-temp        保留中间静态 HTML 并打印路径（排障用）
  *
  * 原理（沉淀自 71 页实战 deck 的导出管线）：
- *   不打印「活的」交互 deck —— 用 DOMParser 抽取 <section> 与 <style> 重建
+ *   不打印“活的”交互 deck —— 用 DOMParser 抽取 <section> 与 <style> 重建
  *   静态流式文档（每片 position:relative + break-after:page），Chromium 打印。
  *   页面尺寸由 CSS @page 驱动（preferCSSPageSize），渲染稳定三连：
  *   networkidle → emulateMedia(print) → document.fonts.ready。

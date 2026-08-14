@@ -1,5 +1,5 @@
 /**
- * deck-presenter.js — 咨询汇报 HTML 幻灯片「独立放映增强层」
+ * deck-presenter.js — 咨询汇报 HTML 幻灯片“独立放映增强层”
  * =====================================================================
  * 定位：deck-stage.js（上游播放器 Web Component，勿改）之外的
  * 本地放映扩展。双击 HTML 直接用浏览器打开即生效，不依赖任何宿主应用。
@@ -13,8 +13,8 @@
  *     自动退化为双胶囊并存，功能不受影响。
  * 上游 deck-stage.js 未来整文件覆盖升级，本文件无需跟改。
  *
- * 功能（对标 PowerPoint 放映交互，v3 新增「窗口放映」，v4 新增「关于面板 +
- * 帮助层一键导出 PDF + chrome 视觉升级」）：
+ * 功能（对标 PowerPoint 放映交互，v3 新增“窗口放映”，v4 新增“关于面板 +
+ * 帮助层一键导出 PDF + chrome 视觉升级”）：
  *   1. 统一控制条   — 底部居中单条胶囊：翻页/页码跳转/回首页/放映/演讲者放映/帮助；
  *                     放映态自动切换为精简放映条（翻页/黑屏/全屏⇄窗口/退出）
  *   2. 放映         — F 从当前页全屏放映（≈PPT Shift+F5）；Shift+F 从头放映（≈F5）；
@@ -43,10 +43,10 @@
  *   关键边：S4 --Esc/系统退全屏--> S3（讲者窗活着=放映不死）；S2 --Esc--> S0（solo
  *   一步全退）；S2/S4 --F--> S1/S3（keepPresentingOnFsExit 意图标志，不出横幅）；
  *   S3 --讲者窗关/bye--> S1（放映不断）；S1/S3 --P--> S3（放映中静默开窗，不弹卡）；
- *   S0 --hello 且 !userExited--> S3。防循环规则：心跳只救「意外掉线」，永不推翻
- *   「明确退出」—— userExited 置位仅在 exitShowCompletely（唯一退出漏斗），清零
+ *   S0 --hello 且 !userExited--> S3。防循环规则：心跳只救“意外掉线”，永不推翻
+ *   “明确退出”—— userExited 置位仅在 exitShowCompletely（唯一退出漏斗），清零
  *   仅在 enterShow（唯一入场漏斗）与 hello 换源；换源判定因 WindowProxy 跨刷新
- *   恒等，实际只覆盖「讲者窗反向重开主窗」一种情形。
+ *   恒等，实际只覆盖“讲者窗反向重开主窗”一种情形。
  *
  * 消息协议（本层自有，__dp 前缀避免与上游冲突；postMessage '*'，file:// 可用）：
  *   {__deckp_hello:'presenter'}          演讲者窗口 → 放映窗口（握手/心跳/重连）
@@ -634,7 +634,7 @@
   let userExited = false;            // 防心跳回拉：明确退出后 hello 不再自动入场（见头注释防循环规则）
   let keepPresentingOnFsExit = false; // F 主动降窗意图标志（onFsChange 消费后复位）
   let swapping = false;              // 交换屏幕过程中抑制 'system' 横幅（commit/失败与超时双清）
-  let fsToastShown = false;          // 「已切换为窗口放映」一次性提示（每次打开一次）
+  let fsToastShown = false;          // “已切换为窗口放映”一次性提示（每次打开一次）
   const baseTitle = document.title;  // 放映窗标题标记的还原基准
 
   const isFs = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
@@ -1058,7 +1058,7 @@
     if (elapsed) toast('放映已结束，共用时 ' + elapsed);
   }
 
-  function maybeFsDownToast() {       // F 首次降窗的一次性引导（接住旧「F=退出」肌肉记忆）
+  function maybeFsDownToast() {       // F 首次降窗的一次性引导（接住旧“F=退出”肌肉记忆）
     if (fsToastShown) return;
     fsToastShown = true;
     toast('已切换为窗口放映，放映未结束——再按 F 回全屏，退出请按 Esc');
@@ -1081,7 +1081,7 @@
     return w;
   }
 
-  function broadcastState(reason) {   // reason 是「本次消息的原因」，心跳/hello 回包恒传 null
+  function broadcastState(reason) {   // reason 是“本次消息的原因”，心跳/hello 回包恒传 null
     post(presenterWin, { __deckp_state: {
       mode: showMode,
       fs: isFs(),
@@ -1813,7 +1813,7 @@
   }
 
   /* ── 缩略图总览 ────────────────────────────────────────────────
-     手机上没有缩略图栏，页码输入又要求读者预先知道「第 17 页是什么」。
+     手机上没有缩略图栏，页码输入又要求读者预先知道“第 17 页是什么”。
      总览把这件事翻过来：先看见，再跳。 */
   function toggleGrid() { gridEl ? closeGrid() : openGrid(); }
 

@@ -21,7 +21,7 @@
 - **核验脚本**：放映增强层无头断言（全绿硬闸门）+ 无头 Chromium 逐页几何探测（防内容撑进页脚）+ 逐页截图溢出报告
 - **PDF 导出**：`scripts/export-pdf.mjs` 一次产出纯幻灯片 PDF（16:9 满幅矢量，无黑边）
   与**逐字稿二合一 handout**（A4 横版：上片下稿，逐字稿自适应排版），`--rp` 出分报告子集，
-  自带页数/尺寸/溢出硬闸校验与 PDF 元数据；现场应急走浏览器 `⌘P` 或帮助浮层「导出 PDF」按钮
+  自带页数/尺寸/溢出硬闸校验与 PDF 元数据；现场应急走浏览器 `⌘P` 或帮助浮层“导出 PDF”按钮
 - **品牌中立**：logo/机构名为占位设计，深色背景为纯 CSS 渐变，替换品牌只要三步（见下）
 
 ## 快速开始（人类）
@@ -58,7 +58,7 @@ git -C consulting-deck-skill archive --format=zip -o ../consulting-deck-skill.zi
 
 1. **标识**：用贵司正式 LOGO 替换 `assets/logos/logo-on-light.svg`（浅底用）与
    `logo-on-dark.svg`（深底用），保持相近宽高比即可，模板按高度自适应；
-2. **机构名**：全局搜「机构名称占位」「机构标识占位」替换为机构正名；
+2. **机构名**：全局搜“机构名称占位”“机构标识占位”替换为机构正名；
 3. **背景（可选）**：深色母版默认是纯 CSS 渐变；需要品牌实景底图时，在模板
    `.bg-cover / .bg-project / .bg-divider / .bg-closing` 恢复
    `background-image:url(...)` 写法。其中 `.bg-cover / .bg-divider / .bg-closing`

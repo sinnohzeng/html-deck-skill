@@ -105,7 +105,7 @@ section{background:var(--paper)}
 .body.flow{justify-content:flex-start}
 .fill{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center}
 
-/* 底部「所以呢」强调条（浅色页） */
+/* 底部“所以呢”强调条（浅色页） */
 .take{flex:none;margin-top:28px;padding-top:20px;border-top:2px solid var(--navy-2)}
 .take .lab{font-family:var(--ff-sans);font-weight:700;font-size:33px;color:var(--teal);margin-right:22px}
 .take .ph{font-family:var(--ff-serif);font-size:33px;color:var(--navy-2);line-height:1.45}
@@ -139,7 +139,7 @@ section{background:var(--paper)}
 .dark .nav{color:var(--muted-dk)}
 .dark .nav .cur{border-color:var(--teal-br);color:#fff}
 
-/* 报告徽标 — 多报告合并 deck 用，章节条首位实心蓝胶囊标明「当前在第几个报告」 */
+/* 报告徽标 — 多报告合并 deck 用，章节条首位实心蓝胶囊标明“当前在第几个报告” */
 .nav .rp{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:700;letter-spacing:.04em;margin-right:8px}
 .dark .nav .rp{background:var(--teal-br);border-color:var(--teal-br);color:var(--navy)}
 
@@ -602,7 +602,7 @@ section{background:var(--paper)}
           </div>
         </div>
       </div>
-      <div class="redline"><span class="lab">边界说明</span><span class="ph">红线条占位：只用于硬边界表述，如「本报告提供分析和建议，最终由客户结合实际确定」。</span></div>
+      <div class="redline"><span class="lab">边界说明</span><span class="ph">红线条占位：只用于硬边界表述，如“本报告提供分析和建议，最终由客户结合实际确定”。</span></div>
       <div class="foot">
         <img class="foot-logo" src="assets/logos/logo-on-light.svg" alt="机构标识占位">
         <div class="nav"><span class="rp">报告一 · 主题</span><span>一 · 章节名</span><span>二 · 章节名</span><span>三 · 章节名</span><span class="cur">结论</span></div>
@@ -625,9 +625,9 @@ section{background:var(--paper)}
 <script type="application/json" id="speaker-notes">
 [
   "母版：项目总封面（bg-project 明亮底 + cover-hero 居中 + .lift 文字投影）。用于多报告项目的总开场；单报告项目可删本页直接用报告封面。",
-  "母版：报告封面（bg-cover 深色底 + 左对齐大标题）。eyebrow 行写「客户名 · 报告序号」，主标题两行以内，副题一行交代项目全称。",
+  "母版：报告封面（bg-cover 深色底 + 左对齐大标题）。eyebrow 行写“客户名 · 报告序号”，主标题两行以内，副题一行交代项目全称。",
   "母版：汇报议程（.toc-row 目录行）。每行 = 序号 + 标题 + 一句话预告；三到四部分为宜，标题名词化、说明句判断化。",
-  "母版：分节页（bg-divider 深色底）。每个部分开场用一页，序号 + 大标题 + 一句话预告；分节页让听众知道「讲到哪了」。",
+  "母版：分节页（bg-divider 深色底）。每个部分开场用一页，序号 + 大标题 + 一句话预告；分节页让听众知道“讲到哪了”。",
   "母版：正文标准页 = head（eyebrow + title + kicker 导言）+ body（.fill 居中承载内容）+ .take 底部强调条 + foot（logo + .nav 章节进度条，.rp 报告徽标只在多报告合并 deck 用）。标题必须是判断句，不是名词短语。",
   "母版：表格比选页（.mck 表格族）。推荐列加 .pick 高亮；行多先用 .mck.tight，再密用 .mck.ops；预算表用 .mck.budget，跨行分组表用 .mck.grouped。表格改完必跑 scripts/measure-geometry.mjs 防止撑进页脚。",
   "母版：双栏对比页（.duo + .panel + .kv 键值行）。左右各讲一条路线，推荐侧 .plabel 用 accent 色。注意 .duo 不设 height:100%，由 .fill 负责居中。",
