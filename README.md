@@ -18,7 +18,7 @@
   单屏按 `P` 可选**窗口放映＋演讲者视图**〔远程会议共享放映窗口，讲稿留本机〕、
   `X` 交换屏幕防投反、`B` 黑屏双窗同步、数字缓冲跳页、放映结束屏、失联/误退一键恢复、`H` 帮助；
   单屏/镜像/Safari/授权被拒自动降级为手动双屏流程）
-- **核验脚本**：放映增强层无头断言（全绿硬闸门）+ 无头 Chromium 逐页几何探测（防内容撑进页脚）+ 逐页截图溢出报告
+- **核验脚本**：放映增强层无头断言（全绿硬门禁）+ 无头 Chromium 逐页几何探测（防内容撑进页脚）+ 逐页截图溢出报告
 - **PDF 导出**：`scripts/export-pdf.mjs` 一次产出纯幻灯片 PDF（16:9 满幅矢量，无黑边）
   与**逐字稿二合一 handout**（A4 横版：上片下稿，逐字稿自适应排版），`--rp` 出分报告子集，
   自带页数/尺寸/溢出硬闸校验与 PDF 元数据；现场应急走浏览器 `⌘P` 或帮助浮层“导出 PDF”按钮
@@ -79,7 +79,7 @@ git -C html-deck-skill archive --format=zip -o ../html-deck-skill.zip HEAD
 | `assets/deck-presenter.js` | 放映增强层（本仓维护，只走 deck-stage 公开协议） |
 | `assets/logos/` `assets/backgrounds/` | 占位标识 SVG / 波浪装饰 PNG |
 | `references/` | 母版登记表 · 组件手册 · token 规范 · 放映指南 · 自检清单 |
-| `scripts/` | verify-presenter.mjs（放映层断言）· measure-geometry.mjs（几何硬闸门）· capture-deck.mjs（截图审阅）· export-pdf.mjs（PDF 导出，自校验硬闸） |
+| `scripts/` | verify-presenter.mjs（放映层断言）· measure-geometry.mjs（几何硬门禁）· capture-deck.mjs（截图审阅）· export-pdf.mjs（PDF 导出，自校验硬闸） |
 
 ## 设计上的几个关键决策
 
@@ -93,7 +93,7 @@ git -C html-deck-skill archive --format=zip -o ../html-deck-skill.zip HEAD
 3. **演讲者视图不走 iframe**：`?presenter=1` 窗口加载同一 HTML 文件，用本文档 DOM
    克隆 + transform 缩放渲染当前/下一页预览；双窗口经 `postMessage('*')` 同步，
    在 `file://` 双击场景下稳定可用（BroadcastChannel 在 file 协议下不可用）。
-4. **几何核验是闸门不是建议**：居中 body 的表格溢出是 scrollHeight 探测盲区，
+4. **几何核验是门禁不是建议**：居中 body 的表格溢出是 scrollHeight 探测盲区，
    必须用 footGap/headGap 几何量测（两次真实踩坑后的定论）。
 
 ## 维护

@@ -67,7 +67,7 @@ node -e "const h=require('fs').readFileSync('<deck>.html','utf8');const n=JSON.p
 
 ### Step 5 · 交付前自检（必做）
 
-按 `references/authoring-checklist.md` 逐项过。其中几何核验是硬闸门：
+按 `references/authoring-checklist.md` 逐项过。其中几何核验是硬门禁：
 
 ```bash
 cd <SKILL_ROOT>/scripts && npm i && npx playwright install chromium   # 首次
@@ -138,9 +138,9 @@ html-deck-skill/
 │   ├── deck-stage-local-patches.md ← 内核三处本地补丁，上游整文件覆盖后照此重打
 │   └── authoring-checklist.md      ← 交付自检清单
 └── scripts/
-    ├── verify-presenter.mjs        ← 放映增强层无头断言（控制条/协议/窗口放映/降级链，硬闸门须全绿）
-    ├── verify-mobile.mjs           ← 手机端形态无头断言（阅读态/滑动/进度/总览，硬闸门须全绿）
-    ├── measure-geometry.mjs        ← 几何核验（footGap/headGap，硬闸门）
+    ├── verify-presenter.mjs        ← 放映增强层无头断言（控制条/协议/窗口放映/降级链，硬门禁须全绿）
+    ├── verify-mobile.mjs           ← 手机端形态无头断言（阅读态/滑动/进度/总览，硬门禁须全绿）
+    ├── measure-geometry.mjs        ← 几何核验（footGap/headGap，硬门禁）
     ├── capture-deck.mjs            ← 逐页截图 + 溢出报告
     ├── export-pdf.mjs              ← PDF 导出（纯片 16:9 + A4 二合一 handout，--rp 分报告，自校验）
     └── package.json                ← 核验/导出脚本依赖声明（playwright + pdf-lib）

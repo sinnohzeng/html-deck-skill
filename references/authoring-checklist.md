@@ -2,7 +2,7 @@
 
 改完 deck、交付前逐项过。P0 不过 = 不交付。
 
-## P0 · 硬闸门
+## P0 · 硬门禁
 
 - [ ] `node scripts/verify-presenter.mjs <deck>`：放映增强层全部断言全绿
 - [ ] `node scripts/verify-mobile.mjs <deck>`：手机端形态全部断言全绿

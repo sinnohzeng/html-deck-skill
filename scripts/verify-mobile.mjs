@@ -1,4 +1,4 @@
-/* 手机端查看形态核验（交付硬闸门）：无头断言竖屏阅读态、横屏观看态、滑动、进度与总览。
+/* 手机端查看形态核验（交付门禁）：无头断言竖屏阅读态、横屏观看态、滑动、进度与总览。
    用法：node verify-mobile.mjs <deck.html 绝对路径>（通常传仓根 template.html）
         node verify-mobile.mjs <deck> --shots     # 顺带出截图到 .verify/
    覆盖：四种视口（iPhone 竖 / iPhone 横 / iPad 竖 / 桌面）的画布几何与贴顶、

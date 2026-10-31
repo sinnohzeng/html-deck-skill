@@ -1,4 +1,4 @@
-/* 放映增强层核验（交付硬闸门）：无头断言 deck-presenter.js 的控制条 / 协议 / 降级链。
+/* 放映增强层核验（交付门禁）：无头断言 deck-presenter.js 的控制条 / 协议 / 降级链。
    用法：node verify-presenter.mjs <deck.html 绝对路径>（通常传仓根 template.html）
         VERIFY_HEADED=1 node verify-presenter.mjs <deck>   # 有头模式，全屏类断言可转硬验证
    覆盖：统一控制条渲染与中文文案、上游导航条抑制（rail 存活）、翻页/回首页/数字缓冲跳页、

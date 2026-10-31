@@ -1,4 +1,4 @@
-/* 几何核验（交付硬闸门）：逐页量 body 内容与页眉/页脚的间隙。
+/* 几何核验（交付门禁）：逐页量 body 内容与页眉/页脚的间隙。
    用法：node measure-geometry.mjs <deck.html 绝对路径>
    判读：footGap / headGap 必须 > 15；负数 = 内容与页眉/页脚重叠（必修）。
    背景：居中 body 的表格对称溢出不改变 scrollHeight，溢出探测（so/bo）测不出，
