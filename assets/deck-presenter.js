@@ -85,7 +85,7 @@
   if (IS_THUMB) return;
 
   const $ = (sel, root) => (root || document).querySelector(sel);
-  const VERSION = 4; // 运行时版本唯一真源：关于面板 / console 横幅 / __deckpPresenter 均引用
+  const VERSION = 4; // 运行时版本唯一事实来源：关于面板 / console 横幅 / __deckpPresenter 均引用
   const FONT_STACK = '"Alibaba PuHuiTi 3.0",-apple-system,"PingFang SC","Microsoft YaHei",sans-serif';
 
   /* ── 共用：postMessage（跨 file:// 双窗，目标可能已关闭） ── */
