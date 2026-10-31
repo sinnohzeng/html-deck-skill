@@ -74,7 +74,7 @@ git -C html-deck-skill archive --format=zip -o ../html-deck-skill.zip HEAD
 | 路径 | 说明 |
 |---|---|
 | `SKILL.md` | 技能入口：工作流六步 + 硬规则七条（智能体读这个） |
-| `template.html` | 种子模板 = 设计系统唯一真源 + 12 页母版示例（占位内容） |
+| `template.html` | 种子模板 = 设计系统唯一事实来源 + 12 页母版示例（占位内容） |
 | `assets/deck-stage.js` | 播放器 Web Component（上游组件，升级=整文件覆盖，勿改） |
 | `assets/deck-presenter.js` | 放映增强层（本仓维护，只走 deck-stage 公开协议） |
 | `assets/logos/` `assets/backgrounds/` | 占位标识 SVG / 波浪装饰 PNG |
@@ -83,7 +83,7 @@ git -C html-deck-skill archive --format=zip -o ../html-deck-skill.zip HEAD
 
 ## 设计上的几个关键决策
 
-1. **单一真源**：设计系统只存在于 `template.html` 的内联 `<style>`，不设独立 CSS 文件
+1. **单一事实来源**：设计系统只存在于 `template.html` 的内联 `<style>`，不设独立 CSS 文件
    ——源自"可读副本与内联样式双源漂移"的实际教训。
 2. **上游/扩展分层**：`deck-stage.js` 保持原样（未来上游更新可整文件覆盖），
    全部本地功能在 `deck-presenter.js`，只通过公开 API（`goTo`）、`slidechange` 事件与

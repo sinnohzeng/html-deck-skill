@@ -117,14 +117,14 @@ PDF 交付：`node scripts/export-pdf.mjs <deck.html>` 一次产出纯幻灯片 
    与 `node scripts/verify-mobile.mjs template.html`（手机端阅读态依赖本地补丁的
    `dock-top` / `deckfit` / `fitBox`，补丁没打上会静默退化成竖屏满屏黑边）。
    断言不过说明上游结构变了，需调整对接点。
-7. **单一真源**：一个 deck 的样式只在其内联 `<style>`；逐字稿只在 `#speaker-notes`。
+7. **单一事实来源**：一个 deck 的样式只在其内联 `<style>`；逐字稿只在 `#speaker-notes`。
 
 ## 资源导览
 
 ```
 html-deck-skill/
 ├── SKILL.md                        ← 本文件（工作流 + 硬规则）
-├── template.html                   ← 种子模板：设计系统唯一真源 + 12 页母版示例
+├── template.html                   ← 种子模板：设计系统唯一事实来源 + 12 页母版示例
 ├── assets/
 │   ├── deck-stage.js               ← 播放内核（上游组件 + 三处本地补丁，见 references）
 │   ├── deck-presenter.js           ← 放映增强层（全屏/窗口放映/滚轮/演讲者视图/黑屏/手机端形态）
