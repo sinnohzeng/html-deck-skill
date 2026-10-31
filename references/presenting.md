@@ -138,7 +138,7 @@
 目标“另存为 PDF” → 每页一片、尺寸 1920×1080、无页边距（`@page` 已由播放器注入）。
 缩略图栏、控制条、演讲者 UI 均不入印。
 
-**交付路径（推荐）**：`scripts/export-pdf.mjs` 一次产出两种交付物，自带硬闸校验：
+**交付路径（推荐）**：`scripts/export-pdf.mjs` 一次产出两种交付物，自带硬门禁校验：
 
 ```bash
 node scripts/export-pdf.mjs <deck.html>            # 两种都导，落 deck 同目录
@@ -154,7 +154,7 @@ node scripts/export-pdf.mjs <deck.html>            # 两种都导，落 deck 同
 产物命名 `<deck 基名>[-rp]-幻灯片[和逐字稿]-<日期>.pdf`，自动写入 PDF 元数据
 （Title/Author/Creator）。判读：脚本 exit 0 即全部通过——页数=页码、页面尺寸
 在容差内、逐字稿零溢出（自适应梯子：缩字号→dense→双栏；仍溢出则报错列页码，
-去精简逐字稿或拆页）。handout 前置硬闸：`#speaker-notes` 条数必须等于页数。
+去精简逐字稿或拆页）。handout 前置硬门禁：`#speaker-notes` 条数必须等于页数。
 `data-deck-skip` 页不入印（与浏览器打印行为一致）。
 
 ## 无头核验（交付前）

@@ -19,7 +19,7 @@
  *   页面尺寸由 CSS @page 驱动（preferCSSPageSize），渲染稳定三连：
  *   networkidle → emulateMedia(print) → document.fonts.ready。
  *
- * 硬闸（任一失败 exit 1）：
+ * 硬门禁（任一失败 exit 1）：
  *   · handout 逐字稿条数 ≠ 页数（#speaker-notes 数组与 <section> 数不一致）
  *   · 逐字稿三段自适应（缩字号→dense→双栏）后仍溢出
  *   · 产出 PDF 页数 ≠ 期望页数，或页面尺寸漂移超容差
@@ -398,7 +398,7 @@ async function renderFamily(browser, { html, tmpHtml, outPdf, isHandout }) {
     let fit = { failures: [], stats: { dense: 0, cols2: 0 } };
     if (isHandout) {
       fit = await fitNotes(page);
-      // 硬闸前置：溢出即抛，绝不落盘残缺 PDF（防覆盖同名好版本）
+      // 硬门禁前置：溢出即抛，绝不落盘残缺 PDF（防覆盖同名好版本）
       if (fit.failures.length) {
         throw new Error(`第 ${fit.failures.join('、')} 页逐字稿超长（三段自适应后仍溢出），请精简逐字稿或拆页`);
       }
@@ -442,7 +442,7 @@ try {
   const deck = await extractDeck(browser, deckPath);
   if (!deck.slides.length) throw new Error(`deck 里的 <deck-stage> 下找不到任何页元素：${deckPath}`);
 
-  // 逐字稿硬闸（handout 前置；与放映侧同口径：数组项或 data-speaker-notes 属性均算稿源）
+  // 逐字稿硬门禁（handout 前置；与放映侧同口径：数组项或 data-speaker-notes 属性均算稿源）
   if (args.handout) {
     if (deck.notesCount !== null && deck.notesCount !== deck.slides.length) {
       throw new Error(`#speaker-notes 条数 ${deck.notesCount} ≠ 页数 ${deck.slides.length}——数组存在时必须与页一一对应（见 SKILL.md Step 4 自检一行命令）`);

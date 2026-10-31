@@ -21,7 +21,7 @@
 - **核验脚本**：放映增强层无头断言（全绿硬门禁）+ 无头 Chromium 逐页几何探测（防内容撑进页脚）+ 逐页截图溢出报告
 - **PDF 导出**：`scripts/export-pdf.mjs` 一次产出纯幻灯片 PDF（16:9 满幅矢量，无黑边）
   与**逐字稿二合一 handout**（A4 横版：上片下稿，逐字稿自适应排版），`--rp` 出分报告子集，
-  自带页数/尺寸/溢出硬闸校验与 PDF 元数据；现场应急走浏览器 `⌘P` 或帮助浮层“导出 PDF”按钮
+  自带页数/尺寸/溢出硬门禁校验与 PDF 元数据；现场应急走浏览器 `⌘P` 或帮助浮层“导出 PDF”按钮
 - **品牌中立**：logo/机构名为占位设计，深色背景为纯 CSS 渐变，替换品牌只要三步（见下）
 
 ## 快速开始（人类）
@@ -79,7 +79,7 @@ git -C html-deck-skill archive --format=zip -o ../html-deck-skill.zip HEAD
 | `assets/deck-presenter.js` | 放映增强层（本仓维护，只走 deck-stage 公开协议） |
 | `assets/logos/` `assets/backgrounds/` | 占位标识 SVG / 波浪装饰 PNG |
 | `references/` | 母版登记表 · 组件手册 · token 规范 · 放映指南 · 自检清单 |
-| `scripts/` | verify-presenter.mjs（放映层断言）· measure-geometry.mjs（几何硬门禁）· capture-deck.mjs（截图审阅）· export-pdf.mjs（PDF 导出，自校验硬闸） |
+| `scripts/` | verify-presenter.mjs（放映层断言）· measure-geometry.mjs（几何硬门禁）· capture-deck.mjs（截图审阅）· export-pdf.mjs（PDF 导出，自校验硬门禁） |
 
 ## 设计上的几个关键决策
 
